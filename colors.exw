@@ -1,0 +1,25 @@
+
+include dos_rescue.ew as dos_rescue
+repaint = -1 -- optional
+AppName = "This is the window's title" -- optional
+
+if dos_rescue:graphics_mode(18) then
+end if
+
+-- show palette:
+for x = 0 to 15 do
+   dos_rescue:printf(1," %2d ",x)
+end for
+
+dos_rescue:puts(1,'\n')
+for x = 0 to 15 do
+   set_bk_color(x)
+   dos_rescue:puts(1,"    ")
+end for
+
+if dos_rescue:wait_key() then
+end if
+
+if dos_rescue:graphics_mode(-1) then
+end if
+

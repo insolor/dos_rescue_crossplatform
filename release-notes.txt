@@ -1,0 +1,29 @@
+Public interfaces implemented dosrescue.e present 
+in 4.0 version of graphics.e:
+
+global color names
+global constant BLINKING = 16  -- add to color to get blinking text
+global function graphics_mode(mode m)
+global constant VC_COLOR = 1, and other VC constants
+global function video_config()
+global function get_position()
+global function text_rows(positive_int rows)
+global procedure wrap(boolean on)
+global procedure scroll(...)
+global procedure text_color(color c)
+global procedure bk_color(color c)
+global cursor styles
+global procedure cursor(integer style)
+
+Some from 3.1 includes:
+
+all_palette(...)
+get_all_palette(...)
+palette(...)
+
+
+There are many more in 3.1's version of graphics.e not implemented.
+
+
+
+
