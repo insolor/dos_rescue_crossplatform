@@ -2,6 +2,7 @@ namespace xlib
 
 include std/dll.e
 include std/machine.e
+include std/sequence.e
 
 integer next_offset = 0
 function offset( atom data_type, integer use_offset = next_offset )
@@ -232,6 +233,17 @@ public constant
 	GCArcMode           = power( 2, 22),
 	$
 
+public constant
+	CoordModeOrigin = 0, /* relative to the origin */
+	CoordModePrevious = 1 /* relative to previous point */
+
+--** Polygon shapes */
+public constant
+	Complex			= 0,	/* paths may intersect */
+	Nonconvex		= 1,	/* no paths intersect, but not convex */
+	Convex			= 2,	/* wholly convex */
+	$
+
 constant X11 = open_dll( "libX11.so" )
 
 constant
@@ -251,9 +263,16 @@ constant
 	XSelectInput_cid        = define_c_func( X11, "XSelectInput", { C_POINTER, C_ULONG, C_LONG }, C_INT ),
 	XSetWMProtocols_cid     = define_c_func( X11, "XSetWMProtocols", { C_POINTER, C_ULONG, C_POINTER, C_INT }, C_INT ),
 	XInternAtom_cid         = define_c_func( X11, "XInternAtom", { C_POINTER, C_POINTER, C_INT }, C_ULONG ),
+	XPending_cid            = define_c_func( X11, "XPending", { C_POINTER }, C_INT ),
 	
 	XDefaultColormapOfScreen_cid = define_c_func( X11, "XDefaultColormapOfScreen", { C_POINTER }, C_POINTER ),
 	XDefaultScreenOfDisplay_cid  = define_c_func( X11, "XDefaultScreenOfDisplay", { C_POINTER }, C_POINTER ),
+	
+	
+	XDrawLine_cid          = define_c_func( X11, "XDrawLine", { C_POINTER, C_ULONG, C_ULONG, C_INT, C_INT, C_INT, C_INT }, C_INT ),
+	XDrawLines_cid         = define_c_func( X11, "XDrawLines", { C_POINTER, C_ULONG, C_ULONG, C_POINTER, C_INT, C_INT }, C_INT ),
+	
+	XFillPolygon_cid       = define_c_func( X11, "XFillPolygon", { C_POINTER, C_ULONG, C_ULONG, C_POINTER, C_INT, C_INT, C_INT }, C_INT ),
 	
 	$
 
@@ -379,4 +398,30 @@ public function XSetWMProtocols( atom display, atom window, object protocols )
 	atom ptr = allocate( sizeof( C_ULONG ) * length( protocols ), 1 )
 	poke_pointer( ptr, protocols )
 	return c_func( XSetWMProtocols_cid, { display, window, ptr, length( protocols ) } )
+end function
+
+public function XPending( atom display )
+	return c_func( XPending_cid, { display } )
+end function
+
+public function XDrawLine( atom display, atom drawable, atom gc, object x1, integer y1 = -1, integer x2 = -1, integer y2 = -1 )
+	if sequence( x1 ) then
+		y1 = x1[1][2]
+		x2 = x1[2][1]
+		y2 = x1[2][2]
+		x1 = x1[1][1]
+	end if
+	return c_func( XDrawLine_cid, { display, drawable, gc, x1, y1, x2, y2 } )
+end function
+
+public function XDrawLines( atom display, atom drawable, atom gc, sequence points, integer mode )
+	atom ptr = allocate( 4 * length( points ), 1 )
+	poke2( ptr, flatten( points ) )
+	return c_func( XDrawLines_cid, { display, drawable, gc, ptr, length( points ), mode } )
+end function
+
+public function XFillPolygon( atom display, atom drawable, atom gc, sequence points, integer shape = Complex , integer mode = CoordModeOrigin )
+	atom ptr = allocate( 4 * length( points ), 1 )
+	poke2( ptr, flatten( points ) )
+	return c_func( XFillPolygon_cid, { display, drawable, gc, ptr, length( points ), shape, mode } )
 end function

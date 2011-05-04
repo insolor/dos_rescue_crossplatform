@@ -2,7 +2,7 @@
 		-- search for a good graphics mode --
 		-------------------------------------
 include dos_rescue.e as dos_rescue
-
+include std/graphics.e
 constant nice_color_modes = {261,18,260,259,258,257,256,19,16,14,13,4},
 	 nice_mono_modes = {17, 11, 15, 6, 5}
 

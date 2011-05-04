@@ -3,6 +3,7 @@ public include dos_rescue.e
 include std/error.e
 include std/graphics.e as graphics
 include std/machine.e
+include std/map.e
 
 include xlib.e
 
@@ -11,6 +12,9 @@ atom
 	rootwindow = -1,
 	window     = -1,
 	screen     = -1
+
+map graphics_context = map:new()
+map allocated_color  = map:new()
 
 type boolean(integer x)
     return x = TRUE or x = FALSE
@@ -77,6 +81,34 @@ color_map[1+BRIGHT_MAGENTA] = make_color(255, 0, 255)
 color_map[1+YELLOW] = make_color(255, 255, 0)
 color_map[1+BRIGHT_WHITE] = make_color(255, 255, 255)
 
+function get_color( integer color )
+	sequence mapped_color = color_map[color + 1]
+	atom c = map:get( allocated_color, mapped_color, 0 )
+	if not c then
+		c = alloc_color( display, mapped_color[1], mapped_color[2], mapped_color[3], 1 )
+		map:put( allocated_color, mapped_color, c )
+	end if
+	return c
+end function
+
+function get_gc( integer fore_color = last_text_color, integer bk_color = last_bk_color)
+	atom 
+		bk   = get_color( bk_color ),
+		fore = get_color( fore_color )
+	
+	atom gc = map:get( graphics_context, { bk, fore }, 0 )
+	if not gc then
+		-- need to create one!
+		atom gcv = new_GCValue( 1 )
+		set_GC_value( gcv, GCBackground, bk )
+		set_GC_value( gcv, GCForeground, fore )
+		gc = XCreateGC( display, window, GCBackground + GCForeground, gcv )
+		map:put( graphics_context, { bk, fore }, gc )
+	end if
+	return gc
+end function
+
+
 for i = 1 to 1025 by 16 do
     color_map[i+16..i+31] = color_map[i..i+15]
 end for
@@ -101,11 +133,11 @@ public procedure text_color(integer color)
     end if
 end procedure
 
--- public procedure clear_region(integer x1, integer y1, integer x2, integer y2)
+public procedure clear_region(integer x1, integer y1, integer x2, integer y2)
 --     c_proc(SelectObject, {hdc, pens[1+last_bk_color]})
 --     c_proc(SelectObject, {hdc, brushes[1+last_bk_color]})
 --     c_proc(Rectangle, {hdc, x1, y1, x2, y2}) -- last row and column are not drawn
--- end procedure
+end procedure
 
 
 
@@ -116,7 +148,7 @@ end procedure
 integer cursor_line, cursor_column
 cursor_line = 1 cursor_column = 1
 
--- public procedure clear_screen()
+public procedure clear_screen()
 -- -- override Euphoria built-in 
 --     if not window_exists then
 --         eu:clear_screen()
@@ -126,7 +158,7 @@ cursor_line = 1 cursor_column = 1
 --         cursor_line = 1
 --         clear_region(0, 0, screen_size_x, screen_size_y)
 --     end if
--- end procedure
+end procedure
 
 public procedure bk_color(integer color)
 -- was calling routine in graphics.e to set background color
@@ -306,31 +338,58 @@ procedure main( integer first_time )
 		window = XCreateSimpleWindow( display, rootwindow, 100, 100, 
 			video_modes[video_mode+1][VC_XPIXELS] + 2, 
 			video_modes[video_mode+1][VC_YPIXELS] + 2, 
-			2, 0x303030, 0xCCCCCC )
+			2, last_bk_color, 0xCCCCCC )
 	
 		wm_protocols = XInternAtom(display, "WM_PROTOCOLS", 0)
 		wm_destroy = XInternAtom( display, "WM_DELETE_WINDOW", 0)
 		XSetWMProtocols( display, window, wm_destroy )
 		XMapWindow( display, window )
-		
+		window_exists = 1
 		
 	end if
 	
 	atom event = new_XEvent( 1 )
 	while 1 do
-		XNextEvent( display, event )
-		integer event_type = peek4s( event )
-		switch event_type do
-			case ClientMessage then
-				atom message_type = peek_pointer( event + XClientMessageEvent_message_type )
-				if message_type = wm_protocols then
-					if wm_destroy = peek_pointer( event + XClientMessageEvent_data_l ) then
-						XDestroyWindow( display, window )
-						XCloseDisplay( display )
-						abort( 0 )
+		if XPending( display ) then
+			XNextEvent( display, event )
+			integer event_type = peek4s( event )
+			switch event_type do
+				case ClientMessage then
+					atom message_type = peek_pointer( event + XClientMessageEvent_message_type )
+					if message_type = wm_protocols then
+						if wm_destroy = peek_pointer( event + XClientMessageEvent_data_l ) then
+							XDestroyWindow( display, window )
+							XCloseDisplay( display )
+							abort( 0 )
+						end if
 					end if
+			end switch
+		else
+			if first_time then
+				-- create task to check message queue
+				atom mq = task_create(routine_id("main"), {FALSE})
+				-- check the queue every .2 to .3 seconds
+				-- (main program must do a task_yield periodically
+				-- or the window will be frozen)
+				task_schedule(mq, {.08, .12}) -- make keyboard very responsive
+				-- assume hdc has now been set
+				return
+			end if
+            
+			if freeze_the_game then
+				sleep( 0.001 ) -- sleep n * .001 seconds 
+				task_clock_stop()
+				if length(char_buff) then
+					freeze_the_game = FALSE
+					char_buff = char_buff[2..$] -- delete the char
+					task_clock_start()
+					task_yield()
 				end if
-		end switch
+			else
+				task_yield()
+			end if
+			
+		end if
 	end while
 end procedure
 
@@ -610,7 +669,11 @@ end function
 -- atom points, npoints
 -- points = 0
 -- npoints = 0
--- public procedure draw_line(integer c, sequence xyarray)
+public procedure draw_line(integer c, sequence xyarray)
+	atom gc = get_gc( c )
+	XDrawLine( display, window, gc, xyarray )
+end procedure
+
 --     if not window_exists then
 -- --        graphics:draw_line(c,xyarray)
 --     else
@@ -641,10 +704,18 @@ end function
 --     end if
 -- end procedure
 
--- public procedure polygon(integer c, integer fill, sequence xyarray)
---     if not window_exists then
---         --graphics:polygon(c,fill,xyarray)
---     else
+public procedure polygon(integer c, integer fill, sequence xyarray)
+	if not window_exists then
+		--graphics:polygon(c,fill,xyarray)
+	else
+		atom gc
+		if fill then
+			gc = get_gc( c, c )
+		else
+			gc = get_gc( c )
+		end if
+		
+		XFillPolygon( display, window, gc, xyarray )
 --         if not c then
 --             c = last_bk_color
 --         end if
@@ -666,8 +737,8 @@ end function
 --             c_proc(SelectObject, {hdc, brushes[1+and_bits(#0F,c)]})
 --             c_proc(Polygon,{hdc, points, length(xyarray)})
 --         end if
---     end if
--- end procedure
+	end if
+end procedure
 
 ------------------------------------------------------------------------------------------------------
 
