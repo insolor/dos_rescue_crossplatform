@@ -139,10 +139,6 @@ public procedure clear_region(integer x1, integer y1, integer x2, integer y2)
 	polygon( last_bk_color, 1, { {x1, y1}, {x2, y1}, {x2, y2}, {x1, y2} } )
 end procedure
 
-
--- constant X = 1, Y = 2
--- sequence pos -- current cursor position
--- pos = {0,0}
 integer cursor_line, cursor_column
 cursor_line = 1 cursor_column = 1
 
@@ -169,13 +165,6 @@ public procedure bk_color(integer color)
     end if
 end procedure
 
-------------------------------------------------------------------------------------------------------
-
--- function default_handler(atom hwnd, atom iMsg, atom wParam, atom lParam, sequence handlers)
---     return c_func(DefWindowProc, {hwnd, iMsg, wParam, lParam})
--- end function
--- public sequence custom_handlers
--- custom_handlers = {routine_id("default_handler")}
 
 public integer repaint
 repaint = -1
@@ -223,121 +212,6 @@ procedure blit()
 		0)
 end procedure
 
-
--- function WndProc(atom hwnd, atom iMsg, atom wParam, atom lParam)
--- -- callback routine to handle Window class
---     sequence winsize,clientsize,seqrect
---     
---     if iMsg = WM_CREATE then
---         window_exists = TRUE
---         
---         c_proc(GetWindowRect,{hwnd,rect})
---         winsize = peek4u({rect,4})
---         winsize[3] -= winsize[1]
---         winsize[4] -= winsize[2]
---         
---         c_proc(GetClientRect, {hwnd,rect})
---         clientsize = peek4u({rect+8,2})
---         
---         winsize[3] = winsize[3] - clientsize[1] + video_modes[video_mode+1][VC_XPIXELS]
---         winsize[4] = winsize[4] - clientsize[2] + video_modes[video_mode+1][VC_YPIXELS]
---         
---         c_proc(MoveWindow, hwnd & winsize & FALSE)
---         
---         return 0
---     
---     elsif iMsg = WM_PAINT then
---         hdc = c_func(BeginPaint, {hwnd, ps})
---         -- c_proc(GetClientRect, {hwnd, rect})
---         
---         hdc = c_func(GetDC, {hwnd})
---         c_proc(SelectObject, 
---                   {hdc, c_func(GetStockObject, {SYSTEM_FIXED_FONT})})
---         
---         if repaint != -1 then
---             call_proc(repaint, {})
---         else
---             seqrect = peek4u({ps+8,4})
---             clear_region(seqrect[1],seqrect[2],seqrect[3],seqrect[4])
---         end if
---         
---         c_proc(EndPaint, {hwnd, ps})
---         
---         return 0
---         
---     elsif iMsg = WM_SIZE then
---         screen_size_x = LOWORD(lParam)
---         screen_size_y = HIWORD(lParam)
---         
---         if screen_size_x != video_modes[video_mode+1][VC_XPIXELS] or 
---                 screen_size_y != video_modes[video_mode+1][VC_YPIXELS] then
---             c_proc(GetWindowRect,{hwnd,rect})
---             winsize = peek4u({rect,4})
---             winsize[3] -= winsize[1]
---             winsize[4] -= winsize[2]
---             
---             winsize[3] = winsize[3] - screen_size_x + video_modes[video_mode+1][VC_XPIXELS]
---             winsize[4] = winsize[4] - screen_size_y + video_modes[video_mode+1][VC_YPIXELS]
---             
---             c_proc(MoveWindow, hwnd & winsize & FALSE)
---             
---             -- clear_screen()
---         end if
---         
---         return 0
---     elsif iMsg = WM_KEYDOWN then
---         if map_key[wParam] >= 0 then
---             char_buff &= map_key[wParam]
---             return 0
---         -- else
---             -- char_buff &= wParam
---             -- return 0
---         end if
---     elsif iMsg = WM_CHAR 
---             then
---         -- record an input character from the keyboard
---         char_buff &= wParam
---         return 0
---         
---     elsif iMsg = WM_CLOSE then
---         abort_program = 1 -- Abort program when the user closes the window
---         -- do not return 0 --
---         
---     elsif iMsg = WM_DESTROY then
---         c_proc(ReleaseDC, {hwnd, hdc})
---         c_proc(PostQuitMessage, {0})
---         window_exists = 0
---         if abort_program then
---             abort(0)
---         end if
---         return 0
---     end if
---     
---     return call_func(custom_handlers[$],
---         {hwnd, iMsg, wParam, lParam, custom_handlers[1..$-1]})
--- end function
-
-------------------------------------------------------------------------------------------------------
-
-public object AppName
-AppName = 0
-
--- constant icon_names = {"exw","euiw","eui"}
--- function get_icon()
---     atom icon_name,icon_handle
---     for n = 1 to length(icon_names) do
---         icon_name = allocate_string(icon_names[n])
---         icon_handle = c_func(LoadIcon,{instance(),icon_name})
---         free(icon_name)
---         if icon_handle then
---             return icon_handle
---         end if
---     end for
---     
---     return c_func(LoadIcon, {0, IDI_APPLICATION})
--- end function
-
--- atom hwnd
 atom
 	wm_protocols,
 	wm_destroy
@@ -427,115 +301,6 @@ procedure main( integer first_time )
 	end while
 end procedure
 
--- procedure WinMain(boolean first_time)
--- -- main routine 
---     atom szAppName
---     atom wndclass
---     atom WndProcAddress
---     atom class
---     atom mq
---     atom icon
---     
---     if first_time then
---         -- initial window set up
---         if atom(AppName) then
---             AppName = command_line()
---             AppName = AppName[2]
---         end if
---         szAppName = allocate_string(AppName)
---     
---         -- get address for callback
---         WndProcAddress = call_back(routine_id("WndProc")) 
---     
---         wndclass = allocate(SIZE_OF_WNDCLASS)
---         poke4(wndclass + cbSize, SIZE_OF_WNDCLASS)
---         poke4(wndclass + style, or_bits(CS_HREDRAW, CS_VREDRAW))
---         poke4(wndclass + lpfnWndProc, WndProcAddress)
---         poke4(wndclass + cbClsExtra, 0)
---         poke4(wndclass + cbWndExtra, 0)
---         poke4(wndclass + hInstance, 0) --hInstance
---         
---         icon = get_icon()
---         poke4(wndclass + hIcon, icon)
---         poke4(wndclass + hCursor, c_func(LoadCursor, {NULL, IDC_ARROW}))
---         poke4(wndclass + hbrBackground, c_func(GetStockObject, {BLACK_BRUSH}))
---         poke4(wndclass + lpszMenuName, NULL)
---         poke4(wndclass + lpszClassName, szAppName)
---         poke4(wndclass + hIconSm, 0)
--- 
---         class = c_func(RegisterClassEx, {wndclass})
---         if class = 0 then
---             puts(1, "Couldn't register class\n")
---             abort(1)
---         end if
---     
---         hwnd = c_func(CreateWindow, {
---                   0,                     -- extended style
---                   szAppName,             -- window class name
---                   allocate_string(AppName), -- window caption
---                   or_all({WS_OVERLAPPED,
---                           WS_MINIMIZEBOX,
---                           WS_CAPTION,
---                           WS_SYSMENU
---                           }), -- window style
---                   0,         -- initial x position
---                   0,         -- initial y position
---                   100,  --640, --CW_USEDEFAULT,         -- initial x size
---                   100,  --480, --CW_USEDEFAULT,         -- initial y size
---                   NULL,                  -- parent window handle
---                   NULL,                  -- window menu handle
---                   0 ,                    -- hInstance // program instance handle
---                   NULL})                 -- creation parameters
---     
---         if hwnd = 0 then
---             puts(1, "Couldn't CreateWindow\n")
---             abort(1)
---         end if
---     
---         c_proc(ShowWindow, {hwnd, SW_SHOWNORMAL})
---         c_proc(UpdateWindow, {hwnd})
---     end if  
--- 
---     -- initial task - message loop using PeekMessage
---     while TRUE do
---         if c_func(PeekMessage, {msg, NULL, 0, 0, PM_REMOVE}) then
---             -- Windows message is there
---             if peek4u(msg+MESSAGE) = WM_QUIT then
---                 exit
---             end if
---             c_proc(TranslateMessage, {msg})
---             c_proc(DispatchMessage, {msg})
---         else
---             -- no messages, let another task run
---             if first_time then
---                 -- create task to check message queue
---                 mq = task_create(routine_id("WinMain"), {FALSE})
---                 -- check the queue every .2 to .3 seconds
---                 -- (main program must do a task_yield periodically
---                 -- or the window will be frozen)
---                 task_schedule(mq, {.08, .12}) -- make keyboard very responsive
---                 -- assume hdc has now been set
---                 return
---             end if
---             
---             if freeze_the_game then
---                 c_proc(Sleep, {10}) -- sleep n * .001 seconds 
---                 task_clock_stop()
---                 if length(char_buff) then
---                     freeze_the_game = FALSE
---                     char_buff = char_buff[2..$] -- delete the char
---                     task_clock_start()
---                     task_yield()
---                 end if
---             else
---                 task_yield()
---             end if
---         end if
---     end while
---     
---     char_buff &= 27 -- Esc character to terminate the other tasks
--- end procedure
-
 ------------------------------------------------------------------------------------------------------
 
 public function graphics_mode(integer m)
@@ -545,23 +310,14 @@ public function graphics_mode(integer m)
 		XDestroyWindow( display, window )
 	elsif sequence(video_modes[m+1]) then
 		video_mode = m
--- 		for i = 1 to length(brushes) do
--- 			c_proc(DeleteObject, {brushes[i]})
--- 			c_proc(DeleteObject, {pens[i]})
--- 		end for	
 		ncolors = video_modes[m+1][VC_NCOLORS]
 		if ncolors > 2048 then
 			-- must expand color_map or change the implementation
 			-- for more than 2048 colors. (or use Direct X or Open GL)
 			crash("Unsupported number of colors %d.", ncolors)
 		end if
--- 		brushes = repeat(0, ncolors)
--- 		pens = brushes
--- 		for i = 1 to ncolors do
--- 			brushes[i] = c_func(CreateSolidBrush, {color_map[i]})
--- 			pens[i] = c_func(CreatePen, {PS_SOLID, 1, color_map[i]})
--- 		end for	
 		if window_exists then
+			-- TODO: free GCs
 			XDestroyWindow( display, window )
 		end if
 		main(TRUE) -- initial setup of hdc
@@ -585,21 +341,21 @@ end function
 -- 	end for
 -- end procedure
 
--- public function get_all_palette()
--- 	integer ncolors = video_modes[video_mode+1][VC_NCOLORS]
--- 	sequence s = color_map[1..ncolors]
--- 	for i = 1 to length(s) do
--- 		s[i] = floor(or_bits(s[i],{#FF0000,#FF00,#FF })/{#40000,#400,#4 } ) 
--- 	end for
--- 	return s
--- end function
+public function get_all_palette()
+	integer ncolors = video_modes[video_mode+1][VC_NCOLORS]
+	sequence s = color_map[1..ncolors]
+	for i = 1 to length(s) do
+		s[i] = floor(or_bits(s[i],{#FF0000,#FF00,#FF })/{#40000,#400,#4 } ) 
+	end for
+	return s
+end function
 
--- public function palette(integer color_index, sequence new_color_triple)
--- 	sequence old_color = 
--- 	floor(or_bits(color_map[color_index+1],{#FF0000,#FF00,#FF })/{#40000,#400,#4 } )
--- 	color_map[color_index+1] = make_color_s(new_color_triple*4)
--- 	return old_color
--- end function
+public function palette(integer color_index, sequence new_color_triple)
+	sequence old_color = 
+	floor(or_bits(color_map[color_index+1],{#FF0000,#FF00,#FF })/{#40000,#400,#4 } )
+	color_map[color_index+1] = make_color_s(new_color_triple*4)
+	return old_color
+end function
 	
 	
 
@@ -680,7 +436,10 @@ end procedure
 --     end if
 -- end function
 
-public procedure ellipse(integer color, integer fill, sequence coord1, sequence coord2)
+public procedure ellipse(integer color,
+-- atom points, npoints
+-- points = 0
+-- npoints = 0 integer fill, sequence coord1, sequence coord2)
 	if not window_exists then	
 -- 		graphics:ellipse(color,fill,coord1,coord2)
 	else
@@ -700,44 +459,11 @@ public procedure ellipse(integer color, integer fill, sequence coord1, sequence 
 	end if
 end procedure
 
--- atom points, npoints
--- points = 0
--- npoints = 0
 public procedure draw_line(integer c, sequence xyarray)
 	atom gc = get_gc( c )
 	XDrawLine( display, pixmap, gc, floor( xyarray ) )
 	blit()
 end procedure
-
---     if not window_exists then
--- --        graphics:draw_line(c,xyarray)
---     else
---         if not c then
---             c = last_bk_color
---         end if
---         if length(xyarray)=2 then
---             c_proc(SelectObject, {hdc, pens[1+and_bits(c,#0F)]})
---             c_proc(MoveToEx, {hdc, xyarray[1][1], xyarray[1][2], 0})
---             for n = 2 to length(xyarray) do
---                 c_proc(LineTo, {hdc, xyarray[n][1], xyarray[n][2]})
---             end for
---         else
---             if length(xyarray)>npoints then
---                 if points then
---                     free(points)
---                 end if
---                 points = allocate(length(xyarray)*8)
---                 npoints = length(xyarray)
---             end if
---             
---             for n = 0 to length(xyarray)-1 do
---                 poke4(points + n*8,xyarray[n+1])
---             end for
---             c_proc(SelectObject, {hdc, pens[1+and_bits(#0F,c)]})
---             c_proc(Polyline,{hdc, points, length(xyarray)})
---         end if
---     end if
--- end procedure
 
 public procedure polygon(integer c, integer fill, sequence xyarray)
 	if not window_exists then
@@ -752,27 +478,6 @@ public procedure polygon(integer c, integer fill, sequence xyarray)
 			XDrawPolygon( display, pixmap, gc, xyarray )
 		end if
 		blit()
---         if not c then
---             c = last_bk_color
---         end if
---         if not fill then
---             draw_line(c, append(xyarray,xyarray[1]))
---         else
---             if length(xyarray)>npoints then
---                 if points then
---                     free(points)
---                 end if
---                 points = allocate(length(xyarray)*8)
---                 npoints = length(xyarray)
---             end if
---             
---             for n = 0 to length(xyarray)-1 do
---                 poke4(points + n*8,xyarray[n+1])
---             end for
---             c_proc(SelectObject, {hdc, pens[1+and_bits(#0F,c)]})
---             c_proc(SelectObject, {hdc, brushes[1+and_bits(#0F,c)]})
---             c_proc(Polygon,{hdc, points, length(xyarray)})
---         end if
 	end if
 end procedure
 
@@ -890,16 +595,16 @@ public procedure printf(integer fn, sequence format, object x)
     end if
 end procedure
 
--- public procedure print(integer fn, object x)
--- -- override Euphoria built-in 
---     sequence s
---     if not window_exists or fn != STDOUT then
---         eu:print(fn,x)
---     else
---         s = sprint(x)
---         puts(fn,s)
---     end if
--- end procedure
+public procedure print(integer fn, object x)
+-- override Euphoria built-in 
+    sequence s
+    if not window_exists or fn != STDOUT then
+        eu:print(fn,x)
+    else
+        s = sprint(x)
+        puts(fn,s)
+    end if
+end procedure
 
 ------------------------------------------------------------------------------------------------------
 
