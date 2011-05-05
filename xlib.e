@@ -275,6 +275,8 @@ constant
 	
 	XDrawLine_cid          = define_c_func( X11, "XDrawLine", { C_POINTER, C_ULONG, C_ULONG, C_INT, C_INT, C_INT, C_INT }, C_INT ),
 	XDrawLines_cid         = define_c_func( X11, "XDrawLines", { C_POINTER, C_ULONG, C_ULONG, C_POINTER, C_INT, C_INT }, C_INT ),
+	XDrawPoint_cid         = define_c_func( X11, "XDrawPoint", { C_POINTER, C_ULONG, C_ULONG, C_INT, C_INT}, C_INT ),
+	XDrawPoints_cid        = define_c_func( X11, "XDrawPoints", { C_POINTER, C_ULONG, C_ULONG, C_POINTER, C_INT, C_INT }, C_INT ),
 	
 	XFillPolygon_cid       = define_c_func( X11, "XFillPolygon", { C_POINTER, C_ULONG, C_ULONG, C_POINTER, C_INT, C_INT, C_INT }, C_INT ),
 	
@@ -441,5 +443,9 @@ end function
 
 public function XDefaultDepth( atom display, integer screen )
 	return c_func( XDefaultDepth_cid, { display, screen } )
+end function
+
+public function XDrawPoint( atom display, atom drawable, atom gc, integer x, integer y )
+	return c_func( XDrawPoint_cid, { display, drawable, gc, x, y } )
 end function
 
