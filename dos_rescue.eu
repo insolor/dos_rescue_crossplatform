@@ -696,7 +696,7 @@ end function
 -- npoints = 0
 public procedure draw_line(integer c, sequence xyarray)
 	atom gc = get_gc( c )
-	XDrawLine( display, pixmap, gc, xyarray )
+	XDrawLine( display, pixmap, gc, floor( xyarray ) )
 	blit()
 end procedure
 
