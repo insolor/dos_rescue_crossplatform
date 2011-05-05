@@ -13,7 +13,7 @@
 
 without type_check
 -- include graphics.e
-include dos_rescue.ew as dos_rescue
+include dos_rescue.e as dos_rescue
 
 constant DEPTH = 13
 sequence vc
