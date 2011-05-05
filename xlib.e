@@ -208,29 +208,29 @@ public constant
 	$
 --** GC components: masks used in CreateGC, CopyGC, ChangeGC, OR'ed into GC.stateChanges */
 public constant
-	GCFunction          = power( 2, 0),
-	GCPlaneMask         = power( 2, 1),
-	GCForeground        = power( 2, 2),
-	GCBackground        = power( 2, 3),
-	GCLineWidth         = power( 2, 4),
-	GCLineStyle         = power( 2, 5),
-	GCCapStyle          = power( 2, 6),
-	GCJoinStyle         = power( 2, 7),
-	GCFillStyle         = power( 2, 8),
-	GCFillRule          = power( 2, 9) ,
-	GCTile              = power( 2, 10),
-	GCStipple           = power( 2, 11),
-	GCTileStipXOrigin   = power( 2, 12),
-	GCTileStipYOrigin   = power( 2, 13),
-	GCFont              = power( 2, 14),
-	GCSubwindowMode     = power( 2, 15),
-	GCGraphicsExposures = power( 2, 16),
-	GCClipXOrigin       = power( 2, 17),
-	GCClipYOrigin       = power( 2, 18),
-	GCClipMask          = power( 2, 19),
-	GCDashOffset        = power( 2, 20),
-	GCDashList          = power( 2, 21),
-	GCArcMode           = power( 2, 22),
+	GCFunction          = 0x1, --power( 2, 0),
+	GCPlaneMask         = 0x2, --power( 2, 1),
+	GCForeground        = 0x4, --power( 2, 2),
+	GCBackground        = 0x8, --power( 2, 3),
+	GCLineWidth         = 0x10, --power( 2, 4),
+	GCLineStyle         = 0x20, --power( 2, 5),
+	GCCapStyle          = 0x40, --power( 2, 6),
+	GCJoinStyle         = 0x80, --power( 2, 7),
+	GCFillStyle         = 0x100, --power( 2, 8),
+	GCFillRule          = 0x200, --power( 2, 9) ,
+	GCTile              = 0x400, --power( 2, 10),
+	GCStipple           = 0x800, --power( 2, 11),
+	GCTileStipXOrigin   = 0x1000, --power( 2, 12),
+	GCTileStipYOrigin   = 0x2000, --power( 2, 13),
+	GCFont              = 0x4000, --power( 2, 14),
+	GCSubwindowMode     = 0x8000, --power( 2, 15),
+	GCGraphicsExposures = 0x10000, --power( 2, 16),
+	GCClipXOrigin       = 0x20000, --power( 2, 17),
+	GCClipYOrigin       = 0x40000, --power( 2, 18),
+	GCClipMask          = 0x80000, --power( 2, 19),
+	GCDashOffset        = 0x100000, --power( 2, 20),
+	GCDashList          = 0x200000, --power( 2, 21),
+	GCArcMode           = 0x400000, --power( 2, 22),
 	$
 
 public constant
@@ -264,6 +264,10 @@ constant
 	XSetWMProtocols_cid     = define_c_func( X11, "XSetWMProtocols", { C_POINTER, C_ULONG, C_POINTER, C_INT }, C_INT ),
 	XInternAtom_cid         = define_c_func( X11, "XInternAtom", { C_POINTER, C_POINTER, C_INT }, C_ULONG ),
 	XPending_cid            = define_c_func( X11, "XPending", { C_POINTER }, C_INT ),
+	XCreatePixmap_cid       = define_c_func( X11, "XCreatePixmap", { C_POINTER, C_ULONG, C_UINT, C_UINT, C_UINT}, C_ULONG ),
+	XCopyArea_cid           = define_c_func( X11, "XCopyArea", 
+		{ C_POINTER, C_ULONG, C_ULONG, C_ULONG, C_INT, C_INT, C_UINT, C_UINT, C_INT, C_INT }, C_INT ),
+	XDefaultDepth_cid       = define_c_func( X11, "XDefaultDepth", { C_POINTER, C_INT }, C_INT ),
 	
 	XDefaultColormapOfScreen_cid = define_c_func( X11, "XDefaultColormapOfScreen", { C_POINTER }, C_POINTER ),
 	XDefaultScreenOfDisplay_cid  = define_c_func( X11, "XDefaultScreenOfDisplay", { C_POINTER }, C_POINTER ),
@@ -319,9 +323,9 @@ public function XCreateGC( atom display, atom drawable, integer valuemask, atom 
 end function
 
 public procedure set_GC_value( atom gcvalue, integer component, atom value )
+
 	switch component do
 		case GCFunction then
-			poke4( gcvalue + XGCValues_function, value )
 		case GCPlaneMask then
 		case GCForeground then
 			poke_pointer( gcvalue + XGCValues_foreground, value )
@@ -345,7 +349,8 @@ public procedure set_GC_value( atom gcvalue, integer component, atom value )
 		case GCClipMask then
 		case GCDashOffset then
 		case GCDashList then
-		case GCArcMode then
+		case GCArcMode then 
+		case else
 	end switch
 end procedure
 
@@ -364,8 +369,8 @@ public function alloc_color( atom display, integer red, integer green, integer b
 		screen   = c_func( XDefaultScreenOfDisplay_cid, { display } ),
 		colormap = c_func( XDefaultColormapOfScreen_cid, { screen } ),
 		xcolor   = new_XColor( cleanup )
-	
 	poke2( xcolor + XColor_red, { red, green, blue } )
+	poke( xcolor + XColor_flags, 7 )
 	c_func( XAllocColor_cid, { display, colormap, xcolor } )
 	return xcolor
 end function
@@ -425,3 +430,16 @@ public function XFillPolygon( atom display, atom drawable, atom gc, sequence poi
 	poke2( ptr, flatten( points ) )
 	return c_func( XFillPolygon_cid, { display, drawable, gc, ptr, length( points ), shape, mode } )
 end function
+
+public function XCreatePixmap( atom display, atom drawable, integer width, integer height, integer depth )
+	return c_func( XCreatePixmap_cid, { display, drawable, width, height, depth } )
+end function
+
+public function XCopyArea( atom display, atom src, atom dest, atom gc, integer src_x, integer src_y, integer width, integer height, integer dest_x, integer dest_y )
+	return c_func( XCopyArea_cid, { display, src, dest, gc, src_x, src_y, width, height, dest_x, dest_y } )
+end function
+
+public function XDefaultDepth( atom display, integer screen )
+	return c_func( XDefaultDepth_cid, { display, screen } )
+end function
+

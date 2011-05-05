@@ -6,12 +6,13 @@ include std/machine.e
 include std/map.e
 
 include xlib.e
-
+with trace
 atom 
 	display    = -1,
 	rootwindow = -1,
 	window     = -1,
-	screen     = -1
+	screen     = -1,
+	pixmap     = -1
 
 map graphics_context = map:new()
 map allocated_color  = map:new()
@@ -46,7 +47,7 @@ public integer last_bk_color
 last_bk_color = BLACK
 
 function scale( integer color )
-	return floor( (color / 0x100 ) * 0x10000 )
+	return floor( (color / 0x100 ) * 0x10000 ) + color
 end function
 
 function make_color(integer red, integer green, integer blue)
@@ -100,9 +101,9 @@ function get_gc( integer fore_color = last_text_color, integer bk_color = last_b
 	if not gc then
 		-- need to create one!
 		atom gcv = new_GCValue( 1 )
-		set_GC_value( gcv, GCBackground, bk )
-		set_GC_value( gcv, GCForeground, fore )
-		gc = XCreateGC( display, window, GCBackground + GCForeground, gcv )
+		set_GC_value( gcv, GCBackground, peek_pointer( bk ) )
+		set_GC_value( gcv, GCForeground, peek_pointer( fore ) )
+		gc = XCreateGC( display, pixmap, GCBackground + GCForeground, gcv )
 		map:put( graphics_context, { bk, fore }, gc )
 	end if
 	return gc
@@ -134,12 +135,8 @@ public procedure text_color(integer color)
 end procedure
 
 public procedure clear_region(integer x1, integer y1, integer x2, integer y2)
---     c_proc(SelectObject, {hdc, pens[1+last_bk_color]})
---     c_proc(SelectObject, {hdc, brushes[1+last_bk_color]})
---     c_proc(Rectangle, {hdc, x1, y1, x2, y2}) -- last row and column are not drawn
+	polygon( last_bk_color, 1, { {x1, y1}, {x2, y1}, {x2, y2}, {x1, y2} } )
 end procedure
-
-
 
 
 -- constant X = 1, Y = 2
@@ -150,14 +147,14 @@ cursor_line = 1 cursor_column = 1
 
 public procedure clear_screen()
 -- -- override Euphoria built-in 
---     if not window_exists then
---         eu:clear_screen()
---     else
---         -- pos = {0,0}
---         cursor_column = 1
---         cursor_line = 1
---         clear_region(0, 0, screen_size_x, screen_size_y)
---     end if
+    if not window_exists then
+        eu:clear_screen()
+    else
+        -- pos = {0,0}
+        cursor_column = 1
+        cursor_line = 1
+        clear_region(0, 0, screen_size_x, screen_size_y)
+    end if
 end procedure
 
 public procedure bk_color(integer color)
@@ -210,6 +207,20 @@ map_key[120] = 323 -- F9
 -- map_key[121] = 324 -- F10
 map_key[122] = 389 -- F11
 map_key[123] = 390 -- F12
+
+procedure blit()
+	XCopyArea( 
+		display, 
+		pixmap, 
+		window, 
+		get_gc(), 
+		0, 
+		0, 
+		screen_size_x, 
+		screen_size_y,
+		0,
+		0)
+end procedure
 
 
 -- function WndProc(atom hwnd, atom iMsg, atom wParam, atom lParam)
@@ -329,23 +340,34 @@ AppName = 0
 atom
 	wm_protocols,
 	wm_destroy
+
 procedure main( integer first_time )
 	if first_time then
 		-- create the window
 		display = XOpenDisplay( 0 )
 		screen  = DefaultScreen( display )
 		rootwindow = RootWindow( display, screen )
+		screen_size_x = video_modes[video_mode+1][VC_XPIXELS]
+		screen_size_y = video_modes[video_mode+1][VC_YPIXELS]
 		window = XCreateSimpleWindow( display, rootwindow, 100, 100, 
-			video_modes[video_mode+1][VC_XPIXELS] + 2, 
-			video_modes[video_mode+1][VC_YPIXELS] + 2, 
+			screen_size_x + 2, 
+			screen_size_y + 2, 
 			2, last_bk_color, 0xCCCCCC )
-	
+		
 		wm_protocols = XInternAtom(display, "WM_PROTOCOLS", 0)
 		wm_destroy = XInternAtom( display, "WM_DELETE_WINDOW", 0)
 		XSetWMProtocols( display, window, wm_destroy )
 		XMapWindow( display, window )
 		window_exists = 1
 		
+		pixmap = XCreatePixmap( display, window, 
+			screen_size_x, 
+			screen_size_y, 
+			XDefaultDepth( display, screen ) )
+		
+		clear_screen()
+		
+		XSelectInput( display, window, ExposureMask )
 	end if
 	
 	atom event = new_XEvent( 1 )
@@ -363,6 +385,9 @@ procedure main( integer first_time )
 							abort( 0 )
 						end if
 					end if
+					
+				case Expose, GraphicsExpose then
+					blit()
 			end switch
 		else
 			if first_time then
@@ -671,7 +696,8 @@ end function
 -- npoints = 0
 public procedure draw_line(integer c, sequence xyarray)
 	atom gc = get_gc( c )
-	XDrawLine( display, window, gc, xyarray )
+	XDrawLine( display, pixmap, gc, xyarray )
+	blit()
 end procedure
 
 --     if not window_exists then
@@ -715,7 +741,8 @@ public procedure polygon(integer c, integer fill, sequence xyarray)
 			gc = get_gc( c )
 		end if
 		
-		XFillPolygon( display, window, gc, xyarray )
+		XFillPolygon( display, pixmap, gc, xyarray )
+		blit()
 --         if not c then
 --             c = last_bk_color
 --         end if
