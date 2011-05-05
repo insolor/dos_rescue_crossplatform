@@ -10,7 +10,7 @@ public include std/os.e
 include std/text.e
 include std/error.e
 public include std/graphcst.e
-public include std/console.e
+include std/console.e
 include std/math.e
 
 export constant DOS32 = 1

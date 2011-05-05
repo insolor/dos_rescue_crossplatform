@@ -133,7 +133,36 @@ public constant
 	XClientMessageEvent_SIZE         = XClientMessageEvent_data + 20,
 	$
 	
+--** PolyText routines take these as arguments
+public constant 
+	XTextItem_chars                 = offset( C_POINTER, 0 ),
+	XTextItem_nchars                = offset( C_INT ),
+	XTextItem_delta                 = offset( C_INT ),
+	XTextItem_font                  = offset( C_ULONG ),
+	XTextItem_SIZE                  = XTextItem_font,
+	$
 
+public constant
+	XFontStruct_ext_data            = offset( C_POINTER, 0 ),
+	XFontStruct_fid                 = offset( C_ULONG ),
+	XFontStruct_direction           = offset( C_UINT ),
+	XFontStruct_min_char_or_byte2   = offset( C_UINT ),
+	XFontStruct_max_char_or_byte2   = offset( C_UINT ),
+	XFontStruct_min_byte1           = offset( C_UINT ),
+	XFontStruct_max_byte2           = offset( C_UINT ),
+	XFontStruct_all_chars_exist     = offset( C_INT ),
+	XFontStruct_default_char        = offset( C_UINT ),
+	XFontStruct_n_properties        = offset( C_INT ),
+	XFontStruct_properties          = offset( C_POINTER ),
+	XFontStruct_min_bounds          = offset( C_POINTER ), -- not correct...
+	XFontStruct_max_bounds          = offset( C_POINTER ), -- also not correct
+	XFontStruct_per_char            = offset( C_POINTER ),
+	XFontStruct_ascent              = offset( C_INT ),
+	XFontStruct_descent             = offset( C_INT ),
+	XFontStruct_SIZE                = next_offset,
+	$
+	
+	
 public constant XEvent_SIZE = 1024
 
 --** Input Event Masks. Used as event-mask window attribute and as arguments
@@ -268,6 +297,9 @@ constant
 	XCopyArea_cid           = define_c_func( X11, "XCopyArea", 
 		{ C_POINTER, C_ULONG, C_ULONG, C_ULONG, C_INT, C_INT, C_UINT, C_UINT, C_INT, C_INT }, C_INT ),
 	XDefaultDepth_cid       = define_c_func( X11, "XDefaultDepth", { C_POINTER, C_INT }, C_INT ),
+	XDefaultGC_cid          = define_c_func( X11, "XDefaultGC", { C_POINTER, C_INT }, C_ULONG ),
+	XGContextFromGC_cid     = define_c_func( X11, "XGContextFromGC", { C_ULONG }, C_ULONG ),
+	XQueryFont_cid          = define_c_func( X11, "XQueryFont", { C_POINTER, C_ULONG }, C_ULONG ),
 	
 	XDefaultColormapOfScreen_cid = define_c_func( X11, "XDefaultColormapOfScreen", { C_POINTER }, C_POINTER ),
 	XDefaultScreenOfDisplay_cid  = define_c_func( X11, "XDefaultScreenOfDisplay", { C_POINTER }, C_POINTER ),
@@ -278,8 +310,15 @@ constant
 	XDrawPoint_cid         = define_c_func( X11, "XDrawPoint", { C_POINTER, C_ULONG, C_ULONG, C_INT, C_INT}, C_INT ),
 	XDrawPoints_cid        = define_c_func( X11, "XDrawPoints", { C_POINTER, C_ULONG, C_ULONG, C_POINTER, C_INT, C_INT }, C_INT ),
 	
+	XDrawText_cid          = define_c_func( X11, "XDrawText", { C_POINTER, C_ULONG, C_ULONG, C_INT, C_INT, C_POINTER, C_INT }, C_INT ),
+	XDrawImageString_cid        = define_c_func( X11, "XDrawImageString", { C_POINTER, C_ULONG, C_ULONG, C_INT, C_INT, C_POINTER, C_INT }, C_INT ),
+	
 	XFillPolygon_cid       = define_c_func( X11, "XFillPolygon", { C_POINTER, C_ULONG, C_ULONG, C_POINTER, C_INT, C_INT, C_INT }, C_INT ),
 	
+	XSetForeground_cid     = define_c_func( X11, "XSetForeground", { C_POINTER, C_ULONG, C_ULONG }, C_INT ),
+	XSetBackground_cid     = define_c_func( X11, "XSetBackground", { C_POINTER, C_ULONG, C_ULONG }, C_INT ),
+	
+	XWhitePixel_cid        = define_c_func( X11, "XWhitePixel", { C_POINTER, C_INT }, C_INT ),
 	$
 
 public function XOpenDisplay( object name )
@@ -449,3 +488,41 @@ public function XDrawPoint( atom display, atom drawable, atom gc, integer x, int
 	return c_func( XDrawPoint_cid, { display, drawable, gc, x, y } )
 end function
 
+public function XDrawText( atom display, atom drawable, atom gc, integer x, integer y, sequence text, atom font = 0 )
+	atom textitem = allocate( XTextItem_SIZE, 1 )
+	atom chars    = allocate_string( text, 1 )
+	
+	poke_pointer( textitem + XTextItem_chars, chars )
+	poke4( textitem + XTextItem_nchars, length( text ) )
+	poke_pointer( textitem + XTextItem_font, font )
+	poke4( textitem + XTextItem_delta, 0 )
+	return c_func( XDrawText_cid, { display, drawable, gc, x, y, textitem, 1 } )
+end function
+
+public function XDefaultGC( atom display, integer screen )
+	return c_func( XDefaultGC_cid, { display, screen } )
+end function
+
+public function XGContextFromGC( atom gc )
+	return c_func( XGContextFromGC_cid, { gc } )
+end function
+
+public function XQueryFont( atom display, atom font_ID )
+	return c_func( XQueryFont_cid, { display, font_ID } )
+end function
+
+public function XDrawImageString( atom display, atom drawable, atom gc, integer x, integer y, sequence string )
+	return c_func( XDrawImageString_cid, { display, drawable, gc, x, y, allocate_string( string, 1 ), length( string ) } )
+end function
+
+public function XSetForeground( atom display, atom gc, atom foreground )
+	return c_func( XSetForeground_cid, { display, gc, foreground } )
+end function
+
+public function XSetBackground( atom display, atom gc, atom background )
+	return c_func( XSetBackground_cid, { display, gc, background } )
+end function
+
+public function XWhitePixel( atom display, integer screen )
+	return c_func( XWhitePixel_cid, { display, screen } )
+end function

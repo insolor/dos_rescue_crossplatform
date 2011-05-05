@@ -12,7 +12,8 @@ atom
 	rootwindow = -1,
 	window     = -1,
 	screen     = -1,
-	pixmap     = -1
+	pixmap     = -1,
+	font       = -1
 
 map graphics_context = map:new()
 map allocated_color  = map:new()
@@ -365,9 +366,14 @@ procedure main( integer first_time )
 			screen_size_y, 
 			XDefaultDepth( display, screen ) )
 		
+		atom default_gcontext = XGContextFromGC( XDefaultGC( display, screen ) )
+-- 		atom fontstruct = XQueryFont( display, default_gcontext )
+-- 		font = peek_pointer( fontstruct + XFontStruct_fid )
+-- 		? -1 & default_gcontext & font
+-- 		fond = default_ccontext
 		clear_screen()
 		
-		XSelectInput( display, window, ExposureMask )
+		XSelectInput( display, window, ExposureMask + KeyPressMask )
 	end if
 	
 	atom event = new_XEvent( 1 )
@@ -388,6 +394,9 @@ procedure main( integer first_time )
 					
 				case Expose, GraphicsExpose then
 					blit()
+				
+				case KeyPress then
+					char_buff &= peek4s( event + XKeyEvent_keycode )
 			end switch
 		else
 			if first_time then
@@ -806,24 +815,11 @@ constant CHARLEFT = 0, CHAR_TOP = 4, CHAR_RIGHT = 8, CHAR_BOTTOM = 12
 constant DT_SINGLE_LINE = #00000020
 constant OPAQUE = 2
 
--- public
--- procedure putsxy(sequence pos, sequence string, 
---                         integer fcolor, integer bcolor)
---     atom s
---     
---     poke4(charRect, pos[1])
---     poke4(charRect+CHAR_TOP, pos[2])
---     poke4(charRect+CHAR_RIGHT, pos[1]+length(string)*8)
---     poke4(charRect+CHAR_BOTTOM, pos[2]+18)
---     
---     c_proc(SetTextColor, {hdc, color_map[1+and_bits(#0F,fcolor)]})
---     c_proc(SetBkColor, {hdc, color_map[1+and_bits(#0F,bcolor)]})
---     c_proc(SetBkMode, {hdc, OPAQUE})
---     
---     s = allocate_string(string)
---     c_proc(DrawText, {hdc, s, -1, charRect, DT_SINGLE_LINE})
---     free(s)
--- end procedure
+public procedure putsxy(sequence pos, sequence string, 
+						integer fcolor, integer bcolor)
+	XDrawImageString( display, pixmap, get_gc( fcolor, bcolor ), pos[1], pos[2], string )
+	blit()
+end procedure
 
 public procedure position(integer line, integer column)
 -- override Euphoria built-in 
@@ -841,45 +837,45 @@ public function get_position()
     -- return floor(pos[Y]/16)+1 & floor(pos[X]/8)+1
 end function
 
--- public procedure puts(integer fn, object str)
+public procedure puts(integer fn, object str)
 -- -- override Euphoria built-in 
---     sequence pos
---     integer i,j
---     if not window_exists or fn != STDOUT then
---         eu:puts(fn,str)
---     else
---         if atom(str) then
---             str = {str}
---         end if
---         i = 1
---         if str[1] = '\n' then
---             i += 1
---             -- pos[X] = 0
---             cursor_column = 1
---             -- pos[Y] += 16
---             cursor_line += 1
---         end if
---         while i<=length(str) do
---             j = find_from('\n',str,i)
---             if j = 0 then
---                 j = length(str)+1
---             end if
---             pos = (cursor_column-1)*8 & (cursor_line-1)*16
---             putsxy(pos,str[i..j-1],last_text_color,last_bk_color)
---             -- putsxy({(cursor_column-1)*8,()},str[i..j-1],last_text_color,last_bk_color)
---             -- pos[X] += (j-i)*8
---             cursor_column += j-i
---             if j>length(str) then
---                 exit
---             end if
---             cursor_column = 1
---             -- pos[X] = 0
---             cursor_line += 1
---             -- pos[Y] += 16
---             i = j+1
---         end while
---     end if
--- end procedure
+    sequence pos
+    integer i,j
+    if not window_exists or fn != STDOUT then
+        eu:puts(fn,str)
+    else
+        if atom(str) then
+            str = {str}
+        end if
+        i = 1
+        if str[1] = '\n' then
+            i += 1
+            -- pos[X] = 0
+            cursor_column = 1
+            -- pos[Y] += 16
+            cursor_line += 1
+        end if
+        while i<=length(str) do
+            j = find_from('\n',str,i)
+            if j = 0 then
+                j = length(str)+1
+            end if
+            pos = (cursor_column-1)*8 & (cursor_line-1)*16
+            putsxy(pos,str[i..j-1],last_text_color,last_bk_color)
+            --putsxy({(cursor_column-1)*8,()},str[i..j-1],last_text_color,last_bk_color)
+            -- pos[X] += (j-i)*8
+            cursor_column += j-i
+            if j>length(str) then
+                exit
+            end if
+            cursor_column = 1
+            -- pos[X] = 0
+            cursor_line += 1
+            -- pos[Y] += 16
+            i = j+1
+        end while
+    end if
+end procedure
 
 public procedure printf(integer fn, sequence format, object x)
 -- override Euphoria built-in 

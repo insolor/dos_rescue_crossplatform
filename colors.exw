@@ -1,5 +1,5 @@
 
-include dos_rescue.ew as dos_rescue
+include dos_rescue.e as dos_rescue
 repaint = -1 -- optional
 AppName = "This is the window's title" -- optional
 
@@ -14,7 +14,8 @@ end for
 dos_rescue:puts(1,'\n')
 for x = 0 to 15 do
    set_bk_color(x)
-   dos_rescue:puts(1,"    ")
+   set_color( 15 - x )
+   dos_rescue:puts(1, "    ")
 end for
 
 if dos_rescue:wait_key() then
