@@ -4,7 +4,7 @@
 without type_check
 
 -- include graphics.e
-include dos_rescue.ew as dos_rescue
+include dos_rescue.e as dos_rescue
 include select.e
 
 use_vesa(1) -- for modes 256...261

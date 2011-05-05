@@ -313,10 +313,15 @@ constant
 	XDrawText_cid          = define_c_func( X11, "XDrawText", { C_POINTER, C_ULONG, C_ULONG, C_INT, C_INT, C_POINTER, C_INT }, C_INT ),
 	XDrawImageString_cid        = define_c_func( X11, "XDrawImageString", { C_POINTER, C_ULONG, C_ULONG, C_INT, C_INT, C_POINTER, C_INT }, C_INT ),
 	
+	XDrawArc_cid           = define_c_func( X11, "XDrawArc", { C_POINTER, C_ULONG, C_ULONG, C_INT, C_INT, C_UINT, C_UINT, C_INT, C_INT }, C_INT ),
+	XFillArc_cid           = define_c_func( X11, "XFillArc", { C_POINTER, C_ULONG, C_ULONG, C_INT, C_INT, C_UINT, C_UINT, C_INT, C_INT }, C_INT ),
+	
+	XDrawPolygon_cid       = define_c_func( X11, "XDrawPolygon", { C_POINTER, C_ULONG, C_ULONG, C_POINTER, C_INT, C_INT, C_INT }, C_INT ),
 	XFillPolygon_cid       = define_c_func( X11, "XFillPolygon", { C_POINTER, C_ULONG, C_ULONG, C_POINTER, C_INT, C_INT, C_INT }, C_INT ),
 	
 	XSetForeground_cid     = define_c_func( X11, "XSetForeground", { C_POINTER, C_ULONG, C_ULONG }, C_INT ),
 	XSetBackground_cid     = define_c_func( X11, "XSetBackground", { C_POINTER, C_ULONG, C_ULONG }, C_INT ),
+	
 	
 	XWhitePixel_cid        = define_c_func( X11, "XWhitePixel", { C_POINTER, C_INT }, C_INT ),
 	$
@@ -470,6 +475,21 @@ public function XFillPolygon( atom display, atom drawable, atom gc, sequence poi
 	atom ptr = allocate( 4 * length( points ), 1 )
 	poke2( ptr, flatten( points ) )
 	return c_func( XFillPolygon_cid, { display, drawable, gc, ptr, length( points ), shape, mode } )
+end function
+
+public function XDrawPolygon( atom display, atom drawable, atom gc, sequence points, integer shape = Complex , integer mode = CoordModeOrigin )
+	atom ptr = allocate( 4 * length( points ), 1 )
+	poke2( ptr, flatten( points ) )
+	return c_func( XDrawPolygon_cid, { display, drawable, gc, ptr, length( points ), shape, mode } )
+end function
+
+
+public function XFillArc( atom display, atom drawable, atom gc, integer x, integer y, integer width, integer height, integer angle1, integer angle2 )
+	return c_func( XFillArc_cid, { display, drawable, gc, x, y, width, height, angle1, angle2 } )
+end function
+
+public function XDrawArc( atom display, atom drawable, atom gc, integer x, integer y, integer width, integer height, integer angle1, integer angle2 )
+	return c_func( XFillArc_cid, { display, drawable, gc, x, y, width, height, angle1, angle2 } )
 end function
 
 public function XCreatePixmap( atom display, atom drawable, integer width, integer height, integer depth )

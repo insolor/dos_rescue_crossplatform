@@ -680,23 +680,25 @@ end procedure
 --     end if
 -- end function
 
--- public procedure ellipse(integer color, integer fill, sequence coord1, sequence coord2)
---     if not window_exists then
--- --        graphics:ellipse(color,fill,coord1,coord2)
---     else
---         coord2 += 1
---         if not color then
---             color = last_bk_color
---         end if
---         c_proc(SelectObject, {hdc, pens[1+color]})
---         if fill then
---             c_proc(SelectObject, {hdc, brushes[1+color]})
---             c_proc(Ellipse, hdc & coord1 & coord2)
---         else
---             c_proc(Arc, hdc & coord1 & coord2 & repeat(0,4))
---         end if
---     end if
--- end procedure
+public procedure ellipse(integer color, integer fill, sequence coord1, sequence coord2)
+	if not window_exists then	
+-- 		graphics:ellipse(color,fill,coord1,coord2)
+	else
+		coord2 += 1
+		if not color then
+			color = last_bk_color
+		end if
+		atom gc = get_gc( color )
+		coord1 = floor( coord1 )
+		coord2 = floor( coord2 )
+		if fill then
+			XFillArc( display, pixmap, gc, coord1[1], coord1[2], coord2[1], coord2[2], 0, 360 * 64 )
+		else
+			XDrawArc( display, pixmap, gc, coord1[1], coord1[2], coord2[1], coord2[2], 0, 360 * 64 )
+		end if
+		blit()
+	end if
+end procedure
 
 -- atom points, npoints
 -- points = 0
@@ -742,13 +744,13 @@ public procedure polygon(integer c, integer fill, sequence xyarray)
 		--graphics:polygon(c,fill,xyarray)
 	else
 		atom gc
-		if fill then
-			gc = get_gc( c, c )
-		else
-			gc = get_gc( c )
-		end if
+		gc = get_gc( c )
 		
-		XFillPolygon( display, pixmap, gc, xyarray )
+		if fill then
+			XFillPolygon( display, pixmap, gc, xyarray )
+		else
+			XDrawPolygon( display, pixmap, gc, xyarray )
+		end if
 		blit()
 --         if not c then
 --             c = last_bk_color
