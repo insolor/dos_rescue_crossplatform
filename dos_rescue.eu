@@ -277,7 +277,23 @@ procedure main( integer first_time )
 					blit()
 				
 				case KeyPress then
-					char_buff &= peek4s( event + XKeyEvent_keycode )
+					integer keysym = XLookupKeysym( event )
+					if keysym then
+						integer mapped_sym = symmap[keysym]
+						if mapped_sym then
+							keysym = mapped_sym
+						elsif keysym >= 'a' and keysym <= 'z' then
+							integer state = peek4s( event + XKeyEvent_state )
+							if and_bits( ShiftMask, state ) then
+								if not and_bits( LockMask, state ) then
+									keysym += 'A' - 'a'
+								end if
+							elsif and_bits( LockMask, state ) then
+								keysym += 'A' - 'a'
+							end if
+						end if
+					end if
+					char_buff &= keysym
 				
 				case ButtonPress, ButtonRelease, MotionNotify then
 					if mouse_handler_rid != -1 then

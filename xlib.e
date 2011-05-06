@@ -1,5 +1,7 @@
 namespace xlib
 
+public include xkeysym.e
+
 include std/dll.e
 include std/machine.e
 include std/sequence.e
@@ -171,6 +173,17 @@ public constant
 	XButtonEvent_SIZE          = next_offset,
 	$
 
+--** Key masks. Used as modifiers to GrabButton and GrabKey, results of QueryPointer,
+-- state in various key-, mouse-, and button-related events.
+public constant
+	ShiftMask		= power( 2, 0),
+	LockMask		= power( 2, 1),
+	ControlMask		= power( 2, 2),
+	Mod1Mask		= power( 2, 3),
+	Mod2Mask		= power( 2, 4),
+	Mod3Mask		= power( 2, 5),
+	Mod4Mask		= power( 2, 6),
+	Mod5Mask		= power( 2, 7)
 
 --** PolyText routines take these as arguments
 public constant 
@@ -342,8 +355,7 @@ constant
 	
 	XDefaultColormapOfScreen_cid = define_c_func( X11, "XDefaultColormapOfScreen", { C_POINTER }, C_POINTER ),
 	XDefaultScreenOfDisplay_cid  = define_c_func( X11, "XDefaultScreenOfDisplay", { C_POINTER }, C_POINTER ),
-	
-	
+	XLooupKeysym_cid             = define_c_func( X11, "XLookupKeysym", { C_POINTER, C_INT }, C_ULONG ),
 	XDrawLine_cid          = define_c_func( X11, "XDrawLine", { C_POINTER, C_ULONG, C_ULONG, C_INT, C_INT, C_INT, C_INT }, C_INT ),
 	XDrawLines_cid         = define_c_func( X11, "XDrawLines", { C_POINTER, C_ULONG, C_ULONG, C_POINTER, C_INT, C_INT }, C_INT ),
 	XDrawPoint_cid         = define_c_func( X11, "XDrawPoint", { C_POINTER, C_ULONG, C_ULONG, C_INT, C_INT}, C_INT ),
@@ -584,4 +596,8 @@ end function
 
 public function XWhitePixel( atom display, integer screen )
 	return c_func( XWhitePixel_cid, { display, screen } )
+end function
+
+public function XLookupKeysym( atom key_event )
+	return c_func( XLooupKeysym_cid, { key_event, 0 } )
 end function
