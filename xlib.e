@@ -325,6 +325,31 @@ public constant
 	Convex			= 2,	/* wholly convex */
 	$
 
+--** Mask bits for ChangeKeyboardControl */
+public constant
+	KBKeyClickPercent           = power( 2, 0),
+	KBBellPercent               = power( 2, 1),
+	KBBellPitch                 = power( 2, 2),
+	KBBellDuration              = power( 2, 3),
+	KBLed                       = power( 2, 4),
+	KBLedMode                   = power( 2, 5),
+	KBKey                       = power( 2, 6),
+	KBAutoRepeatMode            = power( 2, 7),
+	$
+
+public constant
+	XKeyboardControl_key_click_percent  = offset( C_INT, 0 ),
+	XKeyboardControl_bell_percent       = offset( C_INT ),
+	XKeyboardControl_bell_pitch         = offset( C_INT ),
+	XKeyboardControl_bell_duration      = offset( C_INT ),
+	XKeyboardControl_led                = offset( C_INT ),
+	XKeyboardControl_led_mode           = offset( C_INT ),
+	XKeyboardControl_key                = offset( C_INT ),
+	XKeyboardControl_auto_repeat_mode   = offset( C_INT ),
+	XKeyboardControl_SIZE               = next_offset,
+	$
+
+
 constant X11 = open_dll( "libX11.so" )
 
 constant
@@ -373,6 +398,8 @@ constant
 	XSetForeground_cid     = define_c_func( X11, "XSetForeground", { C_POINTER, C_ULONG, C_ULONG }, C_INT ),
 	XSetBackground_cid     = define_c_func( X11, "XSetBackground", { C_POINTER, C_ULONG, C_ULONG }, C_INT ),
 	
+	XBell_cid                  = define_c_func( X11, "XBell", { C_POINTER, C_INT }, C_INT ),
+	XChangeKeyboardControl_cid = define_c_func( X11, "XChangeKeyboardControl", { C_POINTER, C_ULONG, C_POINTER }, C_INT ),
 	
 	XWhitePixel_cid        = define_c_func( X11, "XWhitePixel", { C_POINTER, C_INT }, C_INT ),
 	$
@@ -600,4 +627,12 @@ end function
 
 public function XLookupKeysym( atom key_event )
 	return c_func( XLooupKeysym_cid, { key_event, 0 } )
+end function
+
+public function XBell( atom display, integer percent )
+	return c_func( XBell_cid, { display, percent } )
+end function
+
+public function XChangeKeyboardControl( atom display, atom valuemask, atom values )
+	return c_func( XChangeKeyboardControl_cid, { display, valuemask, values } )
 end function

@@ -722,8 +722,12 @@ end function
 ------------------------------------------------------------------------------------------------------
 
 public procedure sound(integer freq)
-	-- TODO: ??
---     c_proc(Beep,{freq,50})
+	atom kbc = allocate( XKeyboardControl_SIZE, 1 )
+	poke4( kbc + XKeyboardControl_bell_pitch, freq )
+	poke4( kbc + XKeyboardControl_bell_duration, 500 )
+	poke4( kbc + XKeyboardControl_bell_percent, 50 )
+	XChangeKeyboardControl( display, KBBellPitch + KBBellDuration + KBBellPercent, kbc )
+	XBell( display, 50 )
 end procedure
 
 public procedure use_vesa(integer i)
