@@ -477,7 +477,7 @@ public procedure ellipse(integer color, integer fill, sequence coord1, sequence 
 		end if
 		atom gc = get_gc( color )
 		coord1 = floor( coord1 )
-		coord2 = floor( coord2 )
+		coord2 = floor( coord2 ) - coord1
 		if fill then
 			XFillArc( display, pixmap, gc, coord1[1], coord1[2], coord2[1], coord2[2], 0, 360 * 64 )
 		else
