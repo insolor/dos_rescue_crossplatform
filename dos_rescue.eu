@@ -18,6 +18,18 @@ atom
 
 integer mouse_handler_rid = -1
 
+public constant 
+	ARROW_LEFT  = 331,
+	ARROW_RIGHT = 333,
+	ARROW_UP    = 328,
+	ARROW_DOWN  = 336,
+	$
+
+symmap[XK_Left]  = ARROW_LEFT
+symmap[XK_Right] = ARROW_RIGHT
+symmap[XK_Up]    = ARROW_UP
+symmap[XK_Down]  = ARROW_DOWN
+
 export procedure set_mouse_handler( integer rid )
 	mouse_handler_rid = rid
 end procedure
@@ -351,19 +363,15 @@ end function
 
 ------------------------------------------------------------------------------------------------------
 
--- public procedure all_palette(sequence s)
--- 	if length(s) != video_modes[video_mode+1][VC_NCOLORS] then
--- 		crash("The length of s(=%d) to all_palette doesn't match color depth(=%d).", 
--- 		{length(s), video_modes[video_mode+1][VC_NCOLORS]})
--- 	end if
--- 	for i = 1 to length(s) do
--- 		c_proc(DeleteObject, {brushes[i]})
--- 		c_proc(DeleteObject, {pens[i]})
--- 		color_map[i] = make_color_s(s[i]*4)
--- 		brushes[i] = c_func(CreateSolidBrush, {color_map[i]})
--- 		pens[i] = c_func(CreatePen, {PS_SOLID, 1, color_map[i]})
--- 	end for
--- end procedure
+public procedure all_palette(sequence s)
+	if length(s) != video_modes[video_mode+1][VC_NCOLORS] then
+		crash("The length of s(=%d) to all_palette doesn't match color depth(=%d).", 
+		{length(s), video_modes[video_mode+1][VC_NCOLORS]})
+	end if
+	for i = 1 to length(s) do
+		color_map[i] = make_color_s(s[i]*4)
+	end for
+end procedure
 
 public function get_all_palette()
 	integer ncolors = video_modes[video_mode+1][VC_NCOLORS]

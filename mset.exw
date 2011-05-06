@@ -23,7 +23,7 @@ constant GRAPHICS_MODE = 261
 without type_check
 
 -- include image.e
-include dos_rescue.ew as dos_rescue
+include dos_rescue.e as dos_rescue
 include select.e
 -- include get.e
 
@@ -99,32 +99,32 @@ function zoom()
     grid({0, ZOOM_FACTOR}, {0, ZOOM_FACTOR}, 7)
     box = {0, ZOOM_FACTOR-1}
     while TRUE do
-	grid({box[1], box[1]+1}, {box[2], box[2]+1}, rand(15))
-	key = dos_rescue:get_key()
-	if key != -1 then
-	    grid({box[1], box[1]+1}, {box[2], box[2]+1}, 7)
-	    if key = ARROW_UP then
-		if box[2] > 0 then
-		    box[2] -= 1
+		grid({box[1], box[1]+1}, {box[2], box[2]+1}, rand(15))
+		key = dos_rescue:get_key()
+		if key != -1 then
+			grid({box[1], box[1]+1}, {box[2], box[2]+1}, 7)
+			if key = ARROW_UP then
+				if box[2] > 0 then
+					box[2] -= 1
+				end if
+			elsif key = ARROW_DOWN then
+				if box[2] < ZOOM_FACTOR-1 then
+					box[2] += 1
+				end if
+			elsif key = ARROW_RIGHT then
+				if box[1] < ZOOM_FACTOR-1 then
+					box[1] += 1
+				end if
+			elsif key = ARROW_LEFT then
+				if box[1] > 0 then
+					box[1] -= 1
+				end if
+			elsif key >= 27  then
+				return {}  -- quit
+			else
+				return {box[1], ZOOM_FACTOR - 1  - box[2]}
+			end if
 		end if
-	    elsif key = ARROW_DOWN then
-		if box[2] < ZOOM_FACTOR-1 then
-		    box[2] += 1
-		end if
-	    elsif key = ARROW_RIGHT then
-		if box[1] < ZOOM_FACTOR-1 then
-		    box[1] += 1
-		end if
-	    elsif key = ARROW_LEFT then
-		if box[1] > 0 then
-		    box[1] -= 1
-		end if
-	    elsif key >= 27  then
-		return {}  -- quit
-	    else
-		return {box[1], ZOOM_FACTOR - 1  - box[2]}
-	    end if
-	end if
     end while
 end function
 
