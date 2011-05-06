@@ -436,7 +436,7 @@ end procedure
 --     end if
 -- end function
 
-public procedure ellipse(integer color,
+public procedure ellipse(integer color, integer fill, sequence coord1, sequence coord2)
 -- atom points, npoints
 -- points = 0
 -- npoints = 0 integer fill, sequence coord1, sequence coord2)
