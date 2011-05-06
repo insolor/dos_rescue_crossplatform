@@ -248,10 +248,6 @@ procedure main( integer first_time )
 			XDefaultDepth( display, screen ) )
 		
 		atom default_gcontext = XGContextFromGC( XDefaultGC( display, screen ) )
--- 		atom fontstruct = XQueryFont( display, default_gcontext )
--- 		font = peek_pointer( fontstruct + XFontStruct_fid )
--- 		? -1 & default_gcontext & font
--- 		fond = default_ccontext
 		clear_screen()
 		
 		XSelectInput( display, window, ExposureMask + KeyPressMask + PointerMotionMask + ButtonPressMask + ButtonReleaseMask )
@@ -595,7 +591,7 @@ public procedure puts(integer fn, object str)
             if j = 0 then
                 j = length(str)+1
             end if
-            pos = (cursor_column-1)*8 & (cursor_line-1)*16
+            pos = (cursor_column-1)*8 & (cursor_line)*16
             putsxy(pos,str[i..j-1],last_text_color,last_bk_color)
             --putsxy({(cursor_column-1)*8,()},str[i..j-1],last_text_color,last_bk_color)
             -- pos[X] += (j-i)*8
@@ -669,13 +665,6 @@ public function gets(integer fn)
             elsif k = 8 and len>0 then
                 position(p[1],p[2])
                 puts(1,' ')
-                -- if p[2]>1 then
-                    -- p[2] -= 1
-                -- elsif p[1]>1 then
-                    -- p[1] -= 1
-                    -- p[2] = 80
-                -- end if
-                -- -- ? p
                 p[2] -= 1
                 position(p[1],p[2])
                 puts(1,'_')
