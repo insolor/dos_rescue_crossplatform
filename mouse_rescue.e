@@ -1,8 +1,7 @@
 include dos_rescue.ew
 public include std/math.e
 
-ifdef WINDOWS then
-public consant
+public constant
     MOVE        = 1,
     LEFT_DOWN   = 2,
     LEFT_UP     = 4,
@@ -11,18 +10,6 @@ public consant
     MIDDLE_DOWN = 32,
     MIDDLE_UP   = 64,
     $
-elsedef
-public constant
-    MOVE          = 0,
-    LEFT_DOWN     = 4,
-    LEFT_UP       = 4,
-    RIGHT_DOWN    = 1,
-    RIGHT_UP      = 1,
-    MIDDLE_DOWN   = 2,
-    MIDDLE_UP     = 2,
-    ANY_UP        = 35,  -- LEFT, RIGHT or MIDDLE up (best you can do under xterm)
-    $
-end ifdef
 
 -- constant M_GET_MOUSE = 14,
 	 -- M_MOUSE_EVENTS = 15,
