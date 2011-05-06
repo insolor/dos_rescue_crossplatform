@@ -1,5 +1,11 @@
 public include dos_rescue.e
 
+include std/dll.e
+include std/error.e
+include std/graphics.e as graphics
+include std/machine.e
+include std/text.e
+
 type boolean(integer x)
     return x = TRUE or x = FALSE
 end type

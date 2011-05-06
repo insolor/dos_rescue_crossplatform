@@ -26,9 +26,9 @@
 --   own possibilities of winning than with blocking your possibilities.
 
 -- include graphics.e
-include dos_rescue.ew as dos_rescue
+include dos_rescue.e as dos_rescue
 -- include mouse.e
-include mouse_rescue.ew
+include mouse_rescue.e
 include wildcard.e
 
 constant TRUE = 1, FALSE = 0

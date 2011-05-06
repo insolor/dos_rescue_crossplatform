@@ -132,7 +132,46 @@ public constant
 	XClientMessageEvent_data_l       = XClientMessageEvent_data,
 	XClientMessageEvent_SIZE         = XClientMessageEvent_data + 20,
 	$
-	
+
+public constant
+	XMotionEvent_type         = offset( C_INT, 0 ),
+	XMotionEvent_serial       = offset( C_ULONG ),
+	XMotionEvent_send_event   = offset( C_INT ),
+	XMotionEvent_display      = offset( C_POINTER ),
+	XMotionEvent_window       = offset( C_ULONG ),
+	XMotionEvent_root         = offset( C_ULONG ),
+	XMotionEvent_subwindow    = offset( C_ULONG ),
+	XMotionEvent_time         = offset( C_ULONG ),
+	XMotionEvent_x            = offset( C_INT ),
+	XMotionEvent_y            = offset( C_INT ),
+	XMotionEvent_x_root       = offset( C_INT ),
+	XMotionEvent_y_root       = offset( C_INT ),
+	XMotionEvent_state        = offset( C_UINT ),
+	XMotionEvent_is_hint      = offset( C_CHAR ),
+	XMotionEvent_same_screen  = offset( C_INT ),
+	XMotionEvent_SIZE         = next_offset,
+	$
+
+public constant
+	XButtonEvent_type          = offset( C_INT, 0 ),
+	XButtonEvent_serial        = offset( C_ULONG ),
+	XButtonEvent_send_event    = offset( C_INT ),
+	XButtonEvent_display       = offset( C_POINTER ),
+	XButtonEvent_window        = offset( C_ULONG ),
+	XButtonEvent_root          = offset( C_ULONG ),
+	XButtonEvent_subwindow     = offset( C_ULONG ),
+	XButtonEvent_time          = offset( C_ULONG ),
+	XButtonEvent_x             = offset( C_INT ),
+	XButtonEvent_y             = offset( C_INT ),
+	XButtonEvent_x_root        = offset( C_INT ),
+	XButtonEvent_y_root        = offset( C_INT ),
+	XButtonEvent_state         = offset( C_UINT ),
+	XButtonEvent_button        = offset( C_INT ),
+	XButtonEvent_same_screen   = offset( C_INT ),
+	XButtonEvent_SIZE          = next_offset,
+	$
+
+
 --** PolyText routines take these as arguments
 public constant 
 	XTextItem_chars                 = offset( C_POINTER, 0 ),

@@ -4,6 +4,7 @@ include std/error.e
 include std/graphics.e as graphics
 include std/machine.e
 include std/map.e
+include std/text.e
 
 include xlib.e
 with trace
@@ -14,6 +15,12 @@ atom
 	screen     = -1,
 	pixmap     = -1,
 	font       = -1
+
+integer mouse_handler_rid = -1
+
+export procedure set_mouse_handler( integer rid )
+	mouse_handler_rid = rid
+end procedure
 
 map graphics_context = map:new()
 map allocated_color  = map:new()
@@ -247,7 +254,7 @@ procedure main( integer first_time )
 -- 		fond = default_ccontext
 		clear_screen()
 		
-		XSelectInput( display, window, ExposureMask + KeyPressMask )
+		XSelectInput( display, window, ExposureMask + KeyPressMask + PointerMotionMask + ButtonPressMask + ButtonReleaseMask )
 	end if
 	
 	atom event = new_XEvent( 1 )
@@ -271,6 +278,11 @@ procedure main( integer first_time )
 				
 				case KeyPress then
 					char_buff &= peek4s( event + XKeyEvent_keycode )
+				
+				case ButtonPress, ButtonRelease, MotionNotify then
+					if mouse_handler_rid != -1 then
+						call_proc( mouse_handler_rid, { event, event_type } )
+					end if
 			end switch
 		else
 			if first_time then
@@ -696,9 +708,10 @@ end function
 
 ------------------------------------------------------------------------------------------------------
 
--- public procedure sound(integer freq)
+public procedure sound(integer freq)
+	-- TODO: ??
 --     c_proc(Beep,{freq,50})
--- end procedure
+end procedure
 
 public procedure use_vesa(integer i)
     ifdef DOS32 then
@@ -706,3 +719,4 @@ public procedure use_vesa(integer i)
     end ifdef
     -- do nothing
 end procedure
+

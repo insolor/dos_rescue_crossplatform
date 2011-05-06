@@ -1,5 +1,6 @@
-include dos_rescue.e
+include dos_rescue.eu
 include mouse_rescue.e
+include xlib.e
 
 public include std/math.e
 
@@ -18,4 +19,64 @@ public procedure mouse_pointer(integer show_it)
     -- foo
 end procedure
 
+enum
+	LEFT_BUTTON,
+	MIDDLE_BUTTON,
+	RIGHT_BUTTON
 
+function which_button( atom event )
+	return peek4s( event + XButtonEvent_button )
+end function
+
+function peek_xy( atom event )
+	return peek4s( {event + XButtonEvent_x, 2 } )
+end function
+
+procedure mouse_event( atom event, integer event_type )
+	integer button
+	sequence xy = peek_xy( event )
+	switch event_type do
+		case MotionNotify then
+			if and_bits( handle_events, MOVE ) then
+				mouse_buff = append( mouse_buff, MOVE & xy )
+			end if
+	
+		case ButtonPress then
+			if and_bits( handle_events, ANY_DOWN ) then
+				button = which_button( event )
+				switch button do
+					case LEFT_BUTTON then
+						if and_bits( handle_events, LEFT_DOWN ) then
+							mouse_buff = append( mouse_buff,  LEFT_DOWN & xy )
+						end if
+					case MIDDLE_BUTTON then
+						if and_bits( handle_events, MIDDLE_DOWN ) then
+							mouse_buff = append( mouse_buff, MIDDLE_DOWN & xy )
+						end if
+					case RIGHT_BUTTON then
+						if and_bits( handle_events, RIGHT_DOWN ) then
+							mouse_buff = append( mouse_buff,  RIGHT_DOWN & xy )
+						end if
+				end switch
+			end if
+		case ButtonRelease then
+			if and_bits( handle_events, ANY_UP ) then
+				button = which_button( event )
+				switch button do
+					case LEFT_BUTTON then
+						if and_bits( handle_events, LEFT_UP ) then
+							mouse_buff = append( mouse_buff,  LEFT_UP & xy )
+						end if
+					case MIDDLE_BUTTON then
+						if and_bits( handle_events, MIDDLE_DOWN ) then
+							mouse_buff = append( mouse_buff, MIDDLE_UP & xy )
+						end if
+					case RIGHT_BUTTON then
+						if and_bits( handle_events, RIGHT_DOWN ) then
+							mouse_buff = append( mouse_buff,  RIGHT_UP & xy )
+						end if
+				end switch
+			end if
+	end switch
+end procedure
+set_mouse_handler( routine_id("mouse_event") )
