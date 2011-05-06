@@ -9,7 +9,7 @@
 without type_check
 
 -- include graphics.e
-include dos_rescue.ew as dos_rescue
+include dos_rescue.e as dos_rescue
 include file.e
 
 if dos_rescue:graphics_mode(18) then
@@ -72,66 +72,66 @@ end function
 function shell_sort(sequence x)
 -- Shell sort based on insertion sort
 
-    integer gap, j, first, last
-    object tempi, tempj
+	integer gap, j, first, last
+	object tempi, tempj
 
-    last = length(x)
-    gap = floor(last / 10) + 1
-    while TRUE do
-	first = gap + 1
-	for i = first to last do
-	    task_yield()
-	    tempi = x[i]
-	    j = i - gap
-	    while TRUE do
-		tempj = x[j]
-		if compare(tempi, tempj) >= 0 then
-		    j += gap
-		    exit
+	last = length(x)
+	gap = floor(last / 10) + 1
+	while TRUE do
+		first = gap + 1
+		for i = first to last do
+			task_yield()
+			tempi = x[i]
+			j = i - gap
+				while TRUE do
+					tempj = x[j]
+					if compare(tempi, tempj) >= 0 then
+						j += gap
+						exit
+					end if
+					x[j+gap] = tempj
+					show_element(3, j+gap, x[j+gap])
+					if j <= gap then
+						exit
+					end if
+					j -= gap
+					task_yield()
+				end while
+			x[j] = tempi
+			show_element(3, j, x[j])
+		end for
+		if gap = 1 then
+			return x
+		else
+			gap = floor(gap / 3.5) + 1
 		end if
-		x[j+gap] = tempj
-		show_element(3, j+gap, x[j+gap])
-		if j <= gap then
-		    exit
-		end if
-		j -= gap
-		task_yield()
-	    end while
-	    x[j] = tempi
-	    show_element(3, j, x[j])
-	end for
-	if gap = 1 then
-	    return x
-	else
-	    gap = floor(gap / 3.5) + 1
-	end if
-    end while
+	end while
 end function
 
 
 function insertion_sort(sequence x)
 -- put x into ascending order
 -- using insertion sort
-    object temp
-    integer final
+	object temp
+	integer final
 
-    for i = 2 to length(x) do
-	temp = x[i]
-	final = 1
-	for j = i-1 to 1 by -1 do
-	    task_yield()
-	    if compare(temp, x[j]) < 0 then
-		x[j+1] = x[j]
-		show_element(2, j+1, x[j+1])
-	    else
-		final = j + 1
-		exit
-	    end if
+	for i = 2 to length(x) do
+		temp = x[i]
+		final = 1
+		for j = i-1 to 1 by -1 do
+			task_yield()
+			if compare(temp, x[j]) < 0 then
+				x[j+1] = x[j]
+				show_element(2, j+1, x[j+1])
+			else
+				final = j + 1
+				exit
+			end if
+		end for
+		x[final] = temp
+		show_element(2, final, x[final])
 	end for
-	x[final] = temp
-	show_element(2, final, x[final])
-    end for
-    return x
+	return x
 end function
 
 
@@ -140,35 +140,35 @@ sequence x
 procedure best_sort(integer m, integer n)
 -- put x[m..n] into (roughly) ascending order
 -- using recursive quick sort 
-    integer last, mid
-    object midval, temp
+	integer last, mid
+	object midval, temp
 
-    if m > n then 
-	return
-    end if
-    mid = floor((m + n) / 2)
-    midval = x[mid]
-    x[mid] = x[m]
-    show_element(4, mid, x[mid])
-
-    last = m
-    for i = m+1 to n do
-	if compare(x[i], midval) < 0 then
-	    last += 1
-	    temp = x[last]  
-	    x[last] = x[i]  
-	    show_element(4, last, x[last])
-	    x[i] = temp
-	    show_element(4, i, x[i])
+	if m > n then 
+		return
 	end if
-	task_yield()
-    end for
-    x[m] = x[last]
-    show_element(4, m, x[m])
-    x[last] = midval
-    show_element(4, last, x[last])
-    best_sort(m, last-1)
-    best_sort(last+1, n)
+	mid = floor((m + n) / 2)
+	midval = x[mid]
+	x[mid] = x[m]
+	show_element(4, mid, x[mid])
+
+	last = m
+	for i = m+1 to n do
+		if compare(x[i], midval) < 0 then
+			last += 1
+			temp = x[last]  
+			x[last] = x[i]  
+			show_element(4, last, x[last])
+			x[i] = temp
+			show_element(4, i, x[i])
+		end if
+		task_yield()
+	end for
+	x[m] = x[last]
+	show_element(4, m, x[m])
+	x[last] = midval
+	show_element(4, last, x[last])
+	best_sort(m, last-1)
+	best_sort(last+1, n)
 end procedure
 
 global function quick_sort(sequence a)
@@ -183,54 +183,54 @@ end function
 sequence data, data1, data2, data3, data4
 
 procedure init()
-    dos_rescue:clear_screen()
+	dos_rescue:clear_screen()
 
-    for i=1 to 4 do
+	for i=1 to 4 do
 	show_sequence(i, data)
-    end for
+	end for
 
-    dos_rescue:position(1,1)
+	dos_rescue:position(1,1)
 
-    dos_rescue:text_color(COLOR[1])
-    dos_rescue:puts(1, "  Bubble Sort")
-    
-    dos_rescue:text_color(COLOR[2])
-    dos_rescue:puts(1, "        Insertion Sort")
-    
-    dos_rescue:text_color(COLOR[3])
-    dos_rescue:puts(1, "         Shell Sort")
-    
-    dos_rescue:text_color(COLOR[4])
-    dos_rescue:puts(1, "          Quick Sort")
+	dos_rescue:text_color(COLOR[1])
+	dos_rescue:puts(1, "  Bubble Sort")
+
+	dos_rescue:text_color(COLOR[2])
+	dos_rescue:puts(1, "        Insertion Sort")
+
+	dos_rescue:text_color(COLOR[3])
+	dos_rescue:puts(1, "         Shell Sort")
+
+	dos_rescue:text_color(COLOR[4])
+	dos_rescue:puts(1, "          Quick Sort")
 end procedure
 
 
 procedure beep(integer x)
 -- make a beep sound (without causing a delay)
-    dos_rescue:sound(x)
-    task_schedule(task_self(), {.1, .1})
-    task_yield()
-    dos_rescue:sound(0)
+	dos_rescue:sound(x)
+	task_schedule(task_self(), {.1, .1})
+	task_yield()
+	dos_rescue:sound(0)
 end procedure
 
 procedure run_bubble(sequence data)
-    data1 = bubble_sort(data)
-    beep(1000)
+	data1 = bubble_sort(data)
+	beep(1000)
 end procedure
 
 procedure run_insertion(sequence data)
-    data2 = insertion_sort(data)
-    beep(2000)
+	data2 = insertion_sort(data)
+	beep(2000)
 end procedure
 
 procedure run_shell(sequence data)
-    data3 = shell_sort(data)
-    beep(3000)
+	data3 = shell_sort(data)
+	beep(3000)
 end procedure
 
 procedure run_quick(sequence data)
-    data4 = quick_sort(data)
-    beep(4000)
+	data4 = quick_sort(data)
+	beep(4000)
 end procedure
 
 data = rand(repeat(MAXVAL, 455))
