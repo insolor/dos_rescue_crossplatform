@@ -65,7 +65,6 @@ function poly_pattern()
 	if rand(100) = 1 then
 		dos_rescue:bk_color(rand(ncolors)-1)
 	end if
-	task_yield()
 	-- see if user wants to quit
 	key = dos_rescue:get_key()
 	if key = ' ' then

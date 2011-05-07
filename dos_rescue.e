@@ -11,8 +11,7 @@ include std/text.e
 include std/error.e
 public include std/graphcst.e
 include std/console.e
-include std/math.e
-
+public include std/math.e
 export constant DOS32 = 1
 export constant TRUE = 1, FALSE = 0
 export constant STDIN = 0, STDOUT = 1
@@ -53,18 +52,31 @@ end function
 
 export sequence video_modes
 video_modes = repeat(0,262)
-video_modes[   0 + 1 ] = { 1,   0, 25,  40, 320, 400,  32, 1 }
-video_modes[   1 + 1 ] = { 1,   1, 25,  40, 320, 400,  32, 1 }
-video_modes[   2 + 1 ] = { 1,   2, 25,  80, 640, 400,  32, 1 }
-video_modes[   3 + 1 ] = { 1,   3, 25,  80, 640, 400,  32, 1 }
-video_modes[   7 + 1 ] = { 1,   7, 25,  80, 640, 400,  32, 1 }
-video_modes[  17 + 1 ] = { 1,  17, 30,  80, 640, 480,   2, 1 }
-video_modes[  18 + 1 ] = { 1,  18, 30,  80, 640, 480,  16, 1 }
-
-video_modes[  19 + 1 ] = { 1,  18, 30,  80, 640, 480, 256, 1 }
-video_modes[ 257 + 1 ] = { 1, 257, 30,  80, 640, 480, 256, 1 }
-video_modes[ 259 + 1 ] = { 1, 258, 40, 100, 800, 600,  16, 1 }
-video_modes[ 261 + 1 ] = { 1, 261, 50, 128,1024, 768, 256, 1 }
+video_modes[   0 + 1 ] = { 1,   0, 25,  40,  320, 400,  32, 8 }
+video_modes[   1 + 1 ] = { 1,   1, 25,  40,  320, 400,  32, 8 }
+video_modes[   2 + 1 ] = { 1,   2, 25,  80,  640, 400,  32, 8 }
+video_modes[   3 + 1 ] = { 1,   3, 25,  80,  640, 400,  32, 8 }
+-- video_modes[   0 + 1 ] = { 1,   0, 25,  40,    0,   0,  32, 8 }
+-- video_modes[   1 + 1 ] = { 1,   1, 25,  40,    0,   0,  32, 8 }
+-- video_modes[   2 + 1 ] = { 1,   2, 25,  80,    0,   0,  32, 8 }
+-- video_modes[   3 + 1 ] = { 1,   3, 25,  80,    0,   0,  32, 8 }
+video_modes[   4 + 1 ] = { 1,   4, 25,  40,  320, 200,   4, 1 }
+video_modes[   5 + 1 ] = { 1,   5, 25,  40,  320, 200,   4, 1 }
+video_modes[   6 + 1 ] = { 1,   6, 25,  80,  640, 200,   2, 1 }
+-- video_modes[   7 + 1 ] = { 1,   7, 25,  80,    0,   0,  32, 8 }
+video_modes[  13 + 1 ] = { 1,  13, 25,  40,  320, 200,  16, 8 }
+video_modes[  14 + 1 ] = { 1,  14, 25,  80,  640, 200,  16, 4 }
+video_modes[  15 + 1 ] = { 1,  15, 25,  80,  640, 350,   4, 2 }
+video_modes[  16 + 1 ] = { 1,  16, 25,  80,  640, 350,  16, 2 }
+video_modes[  17 + 1 ] = { 1,  17, 30,  80,  640, 480,   2, 1 }
+video_modes[  18 + 1 ] = { 1,  18, 30,  80,  640, 480,  16, 1 }
+video_modes[  19 + 1 ] = { 1,  19, 25,  40,  320, 200, 256, 1 }
+video_modes[ 256 + 1 ] = { 1, 256, 25,  80,  640, 400, 256, 1 }
+video_modes[ 257 + 1 ] = { 1, 257, 30,  80,  640, 480, 256, 1 }
+video_modes[ 258 + 1 ] = { 1, 258, 40, 100,  800, 600,  16, 1 }
+video_modes[ 259 + 1 ] = { 1, 259, 40, 100,  800, 600, 256, 1 }
+video_modes[ 260 + 1 ] = { 1, 260, 50, 128, 1024, 768,  16, 1 }
+video_modes[ 261 + 1 ] = { 1, 261, 50, 128, 1024, 768, 256, 1 }
 
 public enum V_320x400x5 = 1, V_640x400x5 = 2, V_640x480x1 = 17,
 	V_VGAx1 = 17, V_VGAx4 = 18, V_640x480x4 = 18, V_VGAx8 = 257,
