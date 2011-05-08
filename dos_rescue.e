@@ -12,7 +12,7 @@ include std/error.e
 public include std/graphcst.e
 include std/console.e
 public include std/math.e
-export constant DOS32 = 1
+
 export constant TRUE = 1, FALSE = 0
 export constant STDIN = 0, STDOUT = 1
 
@@ -95,13 +95,11 @@ video_mode = 3
 		-- VC_NCOLORS = 7,
 		-- VC_PAGES = 8
 
+public atom screen_size_x, screen_size_y   -- current screen size
+public integer lines, columns
+
 public function video_config()
-    -- if video_mode = -1 then
-    if video_mode = -1 or platform() = DOS32 then
-        return graphics:video_config()
-    else
-        return video_modes[video_mode+1]
-    end if
+    return video_modes[video_mode+1]
 end function
 
 ifdef WINDOWS then

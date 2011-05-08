@@ -731,9 +731,6 @@ public procedure sound(integer freq)
 end procedure
 
 public procedure use_vesa(integer i)
-    ifdef DOS32 then
-        machine:use_vesa(i)
-    end ifdef
     -- do nothing
 end procedure
 
