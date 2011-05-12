@@ -250,9 +250,7 @@ procedure spin(sequence shape)
     history = {}
     spread = 0
     while TRUE do
-	if platform() = WIN32 then
-		c_proc(Sleep,{10})
-	end if
+	sleep(0.01)
 	coords = new_coords(overall, shape)
 	if length(history) > spread then
 	    display(history[1], coords)
