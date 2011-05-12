@@ -86,24 +86,199 @@ public enum V_320x400x5 = 1, V_640x400x5 = 2, V_640x480x1 = 17,
 export integer video_mode
 video_mode = 3
 
--- public constant VC_COLOR = 1,
-		-- VC_MODE  = 2,
-		-- VC_LINES = 3,
-		-- VC_COLUMNS = 4,
-		-- VC_XPIXELS = 5,
-		-- VC_YPIXELS = 6,
-		-- VC_NCOLORS = 7,
-		-- VC_PAGES = 8
-
 public atom screen_size_x, screen_size_y   -- current screen size
 public integer lines, columns
+columns = 80
+public integer cursor_line, cursor_column
+cursor_line = 1 cursor_column = 1
+public sequence char_buff
+char_buff = {}
 
 public function video_config()
     return video_modes[video_mode+1]
 end function
 
 ifdef WINDOWS then
-	public include dos_rescue.ew
+	public include dos_rescue.ew as dos_rescue
 elsedef
-	public include dos_rescue.eu
+	public include dos_rescue.eu as dos_rescue
 end ifdef
+
+public function get_key()
+-- override Euphoria built-in
+-- get next character sent to graphics window
+    integer c
+    if not window_exists then
+        return eu:get_key()
+    else
+        task_yield()
+        if length(char_buff) = 0 then
+            return -1
+        else
+            c = char_buff[1]
+            char_buff = char_buff[2..$]
+            return c
+        end if
+    end if
+end function
+
+public function wait_key()
+    integer c
+    c = -1
+    while c = -1 do
+        c = get_key()
+    end while
+    return c
+end function
+
+public procedure pass_key(integer key)
+-- emulate key-press
+    char_buff &= key
+end procedure
+
+public procedure position(integer line, integer column)
+-- override Euphoria built-in 
+    if not window_exists then
+        eu:position(line,column)
+    else
+        cursor_line = line
+        cursor_column = column
+    end if
+end procedure
+
+public function get_position()
+    return cursor_line & cursor_column
+end function
+
+public procedure puts(integer fn, object str)
+-- -- override Euphoria built-in 
+    sequence pos
+    integer i,j
+    if not window_exists or fn != STDOUT then
+        eu:puts(fn,str)
+    else
+        if atom(str) then
+            str = {str}
+        end if
+        i = 1
+        if str[1] = '\n' then
+            i += 1
+            cursor_column = 1
+            cursor_line += 1
+        end if
+        while i<=length(str) do
+            j = find_from('\n',str,i)
+            if j = 0 then
+                j = length(str)+1
+            end if
+            pos = (cursor_column-1)*8 & (cursor_line)*16
+            putsxy(pos,str[i..j-1],last_text_color,last_bk_color)
+            cursor_column += j-i
+            if j>length(str) then
+                exit
+            end if
+            cursor_column = 1
+            cursor_line += 1
+            i = j+1
+        end while
+    end if
+end procedure
+
+public procedure printf(integer fn, sequence format, object x)
+-- override Euphoria built-in 
+    sequence s
+    if not window_exists or fn != STDOUT then
+        eu:printf(fn,format,x)
+    else
+        s = sprintf(format, x)
+        puts(fn,s)
+    end if
+end procedure
+
+public procedure print(integer fn, object x)
+-- override Euphoria built-in 
+    sequence s
+    if not window_exists or fn != STDOUT then
+        eu:print(fn,x)
+    else
+        s = sprint(x)
+        puts(fn,s)
+    end if
+end procedure
+
+
+------------------------------------------------------------------------------
+
+sequence getc_buffer
+getc_buffer = {}
+
+public function gets(integer fn)
+-- override Euphoria built-in 
+    sequence p
+    integer k
+    sequence buf
+    integer len,size
+    
+    if not window_exists or fn != STDIN then
+        return eu:gets(fn)
+    elsif length(getc_buffer) then
+        buf = getc_buffer
+        getc_buffer = {}
+        return buf
+    else
+        buf = {}
+        len = 0
+        size = 0
+        
+        p = dos_rescue:get_position()
+        while 1 do
+            dos_rescue:puts(1,'_')
+            dos_rescue:position(p[1],p[2])
+            k = wait_key()
+            if k = '\r' then
+                dos_rescue:puts(1,' ')
+                dos_rescue:position(p[1],p[2])
+                exit
+            elsif (k = 8 or k = 331) and len>0 then
+                dos_rescue:position(p[1],p[2])
+                dos_rescue:puts(1,' ')
+                p[2] -= 1
+                dos_rescue:position(p[1],p[2])
+                dos_rescue:puts(1,'_')
+                dos_rescue:position(p[1],p[2])
+                len -= 1
+            elsif k >= ' ' and k < 256 and p[2]<columns then
+                dos_rescue:puts(1,k)
+                p[2] += 1
+                if len = size then
+                    buf &= k
+                    len += 1
+                    size += 1
+                else
+                    len += 1
+                    buf[len] = k
+                end if
+            end if
+        end while
+        
+        if len<size then
+            buf = buf[1..len]
+        end if
+        
+        return buf & '\r'
+    end if
+end function
+
+public function getc(integer fn)
+-- override Euphoria built-in 
+    integer c
+    if not window_exists or fn != STDIN then
+        return eu:getc(fn)
+    elsif length(getc_buffer) = 0 then
+        getc_buffer = gets(fn)
+    end if
+    
+    c = getc_buffer[1]
+    getc_buffer = getc_buffer[2..$]
+    return c
+end function

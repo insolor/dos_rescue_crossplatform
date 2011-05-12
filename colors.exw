@@ -1,7 +1,7 @@
 
 include dos_rescue.e as dos_rescue
 repaint = -1 -- optional
-AppName = "This is the window's title" -- optional
+--AppName = "This is the window's title" -- optional
 
 if dos_rescue:graphics_mode(18) then
 end if

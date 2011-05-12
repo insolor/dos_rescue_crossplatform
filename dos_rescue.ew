@@ -69,8 +69,6 @@ freeze_the_game = FALSE
 public integer window_exists
 window_exists = FALSE
 
-sequence char_buff
-char_buff = {}
 
 integer LoadIcon, LoadCursor, RegisterClassEx, GetWindowRect,
         CreateWindow, ShowWindow, UpdateWindow, GetMessage, PeekMessage,
@@ -333,8 +331,7 @@ public procedure clear_region(integer x1, integer y1, integer x2, integer y2)
     c_proc(Rectangle, {hdc, x1, y1, x2, y2}) -- last row and column are not drawn
 end procedure
 
-integer cursor_line, cursor_column
-cursor_line = 1 cursor_column = 1
+
 
 public procedure clear_screen()
 -- override Euphoria built-in 
@@ -843,210 +840,29 @@ end procedure
 
 ------------------------------------------------------------------------------------------------------
 
-
-public function get_key()
--- override Euphoria built-in
--- get next character sent to graphics window
-    integer c
-    if not window_exists then
-        return eu:get_key()
-    else
-        task_yield()
-        if length(char_buff) = 0 then
-            return -1
-        else
-            c = char_buff[1]
-            char_buff = char_buff[2..$]
-            return c
-        end if
-    end if
-end function
-
-public function wait_key()
-    integer c
-    c = -1
-    while c = -1 do
-        c = get_key()
-    end while
-    return c
-end function
-
-public procedure pass_key(integer key)
--- emulate key-press
-    char_buff &= key
-end procedure
-
-atom charRect
-charRect = allocate(4*4)
-constant CHARLEFT = 0, CHAR_TOP = 4, CHAR_RIGHT = 8, CHAR_BOTTOM = 12
+-- constant LEFT = 0, TOP = 4, RIGHT = 8, BOTTOM = 12
 constant DT_SINGLE_LINE = #00000020
 constant OPAQUE = 2
 
--- public
+public
 procedure putsxy(sequence pos, sequence string, 
                         integer fcolor, integer bcolor)
     atom s
     
-    poke4(charRect, pos[1])
-    poke4(charRect+CHAR_TOP, pos[2])
-    poke4(charRect+CHAR_RIGHT, pos[1]+length(string)*8)
-    poke4(charRect+CHAR_BOTTOM, pos[2]+18)
+    -- poke4(rect+LEFT, pos[1])
+    -- poke4(rect+TOP, pos[2])
+    -- poke4(rect+RIGHT, pos[1]+length(string)*8)
+    -- poke4(rect+BOTTOM, pos[2]+18)
+    poke4(rect, pos & pos[1]+length(string)*8 & pos[2]+18)
     
     c_proc(SetTextColor, {hdc, color_map[1+and_bits(color_mask,fcolor)]})
     c_proc(SetBkColor, {hdc, color_map[1+and_bits(color_mask,bcolor)]})
     c_proc(SetBkMode, {hdc, OPAQUE})
     
     s = allocate_string(string)
-    c_proc(DrawText, {hdc, s, -1, charRect, DT_SINGLE_LINE})
+    c_proc(DrawText, {hdc, s, -1, rect, DT_SINGLE_LINE})
     free(s)
 end procedure
-
-public procedure position(integer line, integer column)
--- override Euphoria built-in 
-    if not window_exists then
-        eu:position(line,column)
-    else
-        cursor_line = line
-        cursor_column = column
-    end if
-end procedure
-
-public function get_position()
-    return cursor_line & cursor_column
-    -- return floor(pos[Y]/16)+1 & floor(pos[X]/8)+1
-end function
-
-public procedure puts(integer fn, object str)
--- override Euphoria built-in 
-    sequence pos
-    integer i,j
-    if not window_exists or fn != STDOUT then
-        eu:puts(fn,str)
-    else
-        if atom(str) then
-            str = {str}
-        end if
-        i = 1
-        if str[1] = '\n' then
-            i += 1
-            cursor_column = 1
-            cursor_line += 1
-        end if
-        while i<=length(str) do
-            j = find_from('\n',str,i)
-            if j = 0 then
-                j = length(str)+1
-            end if
-            pos = (cursor_column-1)*8 & (cursor_line-1)*16
-            putsxy(pos,str[i..j-1],last_text_color,last_bk_color)
-            cursor_column += j-i
-            if j>length(str) then
-                exit
-            end if
-            cursor_column = 1
-            cursor_line += 1
-            i = j+1
-        end while
-    end if
-end procedure
-
-public procedure printf(integer fn, sequence format, object x)
--- override Euphoria built-in 
-    sequence s
-    if not window_exists or fn != STDOUT then
-        eu:printf(fn,format,x)
-    else
-        s = sprintf(format, x)
-        puts(fn,s)
-    end if
-end procedure
-
-public procedure print(integer fn, object x)
--- override Euphoria built-in 
-    sequence s
-    if not window_exists or fn != STDOUT then
-        eu:print(fn,x)
-    else
-        s = sprint(x)
-        puts(fn,s)
-    end if
-end procedure
-
-------------------------------------------------------------------------------------------------------
-
-sequence getc_buffer
-getc_buffer = {}
-
-public function gets(integer fn)
--- override Euphoria built-in 
-    sequence p
-    integer k
-    sequence buf
-    integer len,size
-    
-    if not window_exists or fn != STDIN then
-        return eu:gets(fn)
-    elsif length(getc_buffer) then
-        buf = getc_buffer
-        getc_buffer = {}
-        return buf
-    else
-        buf = {}
-        len = 0
-        size = 0
-        
-        p = get_position()
-        while 1 do
-            puts(1,'_')
-            position(p[1],p[2])
-            k = wait_key()
-            if k = '\r' then
-                puts(1,' ')
-                position(p[1],p[2])
-                exit
-            elsif (k = 8 or k = 331) and len>0 then
-                position(p[1],p[2])
-                puts(1,' ')
-                p[2] -= 1
-                position(p[1],p[2])
-                puts(1,'_')
-                position(p[1],p[2])
-                len -= 1
-            elsif k >= ' ' and k < 256 and p[2]<columns then
-                puts(1,k)
-                p[2] += 1
-                if len = size then
-                    buf &= k
-                    len += 1
-                    size += 1
-                else
-                    len += 1
-                    buf[len] = k
-                end if
-            end if
-        end while
-        
-        if len<size then
-            buf = buf[1..len]
-        end if
-        
-        return buf & '\r'
-    end if
-end function
-
-public function getc(integer fn)
--- override Euphoria built-in 
-    integer c
-    if not window_exists or fn != STDIN then
-        return eu:getc(fn)
-    elsif length(getc_buffer) = 0 then
-        getc_buffer = gets(fn)
-    end if
-    
-    c = getc_buffer[1]
-    getc_buffer = getc_buffer[2..$]
-    return c
-end function
 
 ------------------------------------------------------------------------------------------------------
 

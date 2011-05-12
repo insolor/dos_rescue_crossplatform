@@ -48,19 +48,6 @@ freeze_the_game = FALSE
 public integer window_exists
 window_exists = FALSE
 
-sequence char_buff
-char_buff = {}
-
-public integer ShellExecute
-
-atom screen_size_x, screen_size_y   -- current screen size
-
-atom ps, rect
-ps = allocate(64)
-rect = allocate(16) 
-
-public integer PlaySound, Sleep, Beep
-
 public integer last_text_color
 last_text_color = WHITE
 public integer last_bk_color
@@ -158,15 +145,14 @@ public procedure clear_region(integer x1, integer y1, integer x2, integer y2)
 	polygon( last_bk_color, 1, { {x1, y1}, {x2, y1}, {x2, y2}, {x1, y2} } )
 end procedure
 
-integer cursor_line, cursor_column
-cursor_line = 1 cursor_column = 1
+-- integer cursor_line, cursor_column
+-- cursor_line = 1 cursor_column = 1
 
 public procedure clear_screen()
 -- -- override Euphoria built-in 
     if not window_exists then
         eu:clear_screen()
     else
-        -- pos = {0,0}
         cursor_column = 1
         cursor_line = 1
         clear_region(0, 0, screen_size_x, screen_size_y)
@@ -377,43 +363,22 @@ public function get_all_palette()
 	integer ncolors = video_modes[video_mode+1][VC_NCOLORS]
 	sequence s = color_map[1..ncolors]
 	for i = 1 to length(s) do
-		s[i] = floor(or_bits(s[i],{#FF0000,#FF00,#FF })/{#40000,#400,#4 } ) 
+		s[i] = floor(and_bits(s[i],{#FF0000,#FF00,#FF })/{#40000,#400,#4 } ) 
 	end for
 	return s
 end function
 
 public function palette(integer color_index, sequence new_color_triple)
 	sequence old_color = 
-	floor(or_bits(color_map[color_index+1],{#FF0000,#FF00,#FF })/{#40000,#400,#4 } )
+	floor(and_bits(color_map[color_index+1],{#FF0000,#FF00,#FF })/{#40000,#400,#4 } )
 	color_map[color_index+1] = make_color_s(new_color_triple*4)
 	return old_color
 end function
-	
-	
-
--- public procedure simplepixel(object c, sequence s)
---    integer xstart, y
---    
---    if atom(c) then
---        -- inlined for speed
---        c_proc(SetPixelV, {hdc, s[1], s[2], color_map[1+c]})
---    else
---        y = s[2]
---        xstart = s[1]
---        for i = 1 to length(c) do
---            c_proc(SetPixelV, {hdc, xstart, y, color_map[1+c[i]]})
---            xstart += 1
---        end for  
---    end if
--- end procedure
-
 
 public procedure pixel(object c, sequence s)
 -- -- override Euphoria built-in 
     integer i, xstart, y, pcount, color
-	if not window_exists then
-		-- eu:pixel(c,s)
-	else
+	if window_exists then
 		s = floor( s )
 		if atom(c) then
 			-- single pixel
@@ -472,9 +437,7 @@ public procedure ellipse(integer color, integer fill, sequence coord1, sequence 
 -- atom points, npoints
 -- points = 0
 -- npoints = 0 integer fill, sequence coord1, sequence coord2)
-	if not window_exists then	
--- 		graphics:ellipse(color,fill,coord1,coord2)
-	else
+	if window_exists then
 		coord2 += 1
 		if not color then
 			color = last_bk_color
@@ -492,16 +455,21 @@ public procedure ellipse(integer color, integer fill, sequence coord1, sequence 
 end procedure
 
 public procedure draw_line(integer c, sequence xyarray)
-	atom gc = get_gc( c )
+	atom gc
+	if c = 0 then
+	    c = last_bk_color
+	end if
+	gc = get_gc( c )
 	XDrawLine( display, pixmap, gc, floor( xyarray ) )
 	blit()
 end procedure
 
 public procedure polygon(integer c, integer fill, sequence xyarray)
-	if not window_exists then
-		--graphics:polygon(c,fill,xyarray)
-	else
+	if window_exists then
 		atom gc
+		if c = 0 then
+		    c = last_bk_color
+		end if
 		gc = get_gc( c )
 		
 		if fill then
@@ -515,209 +483,12 @@ end procedure
 
 ------------------------------------------------------------------------------------------------------
 
-
-public function get_key()
--- override Euphoria built-in
--- get next character sent to graphics window
-    integer c
-    if not window_exists then
-        return eu:get_key()
-    else
-        task_yield()
-        if length(char_buff) = 0 then
-            return -1
-        else
-            c = char_buff[1]
-            char_buff = char_buff[2..$]
-            return c
-        end if
-    end if
-end function
-
-public function wait_key()
-    integer c
-    c = -1
-    while c = -1 do
-        c = get_key()
-    end while
-    return c
-end function
-
-public procedure pass_key(integer key)
--- emulate key-press
-    char_buff &= key
-end procedure
-
-atom charRect
-charRect = allocate(4*4)
-constant CHARLEFT = 0, CHAR_TOP = 4, CHAR_RIGHT = 8, CHAR_BOTTOM = 12
-constant DT_SINGLE_LINE = #00000020
-constant OPAQUE = 2
-
-public procedure putsxy(sequence pos, sequence string, 
+public
+procedure putsxy(sequence pos, sequence string, 
 						integer fcolor, integer bcolor)
 	XDrawImageString( display, pixmap, get_gc( fcolor, bcolor ), pos[1], pos[2], string )
 	blit()
 end procedure
-
-public procedure position(integer line, integer column)
--- override Euphoria built-in 
-    if not window_exists then
-        eu:position(line,column)
-    else
-        cursor_line = line
-        cursor_column = column
-        -- pos = (column-1)*8 & (line-1)*16
-    end if
-end procedure
-
-public function get_position()
-    return cursor_line & cursor_column
-    -- return floor(pos[Y]/16)+1 & floor(pos[X]/8)+1
-end function
-
-public procedure puts(integer fn, object str)
--- -- override Euphoria built-in 
-    sequence pos
-    integer i,j
-    if not window_exists or fn != STDOUT then
-        eu:puts(fn,str)
-    else
-        if atom(str) then
-            str = {str}
-        end if
-        i = 1
-        if str[1] = '\n' then
-            i += 1
-            -- pos[X] = 0
-            cursor_column = 1
-            -- pos[Y] += 16
-            cursor_line += 1
-        end if
-        while i<=length(str) do
-            j = find_from('\n',str,i)
-            if j = 0 then
-                j = length(str)+1
-            end if
-            pos = (cursor_column-1)*8 & (cursor_line)*16
-            putsxy(pos,str[i..j-1],last_text_color,last_bk_color)
-            --putsxy({(cursor_column-1)*8,()},str[i..j-1],last_text_color,last_bk_color)
-            -- pos[X] += (j-i)*8
-            cursor_column += j-i
-            if j>length(str) then
-                exit
-            end if
-            cursor_column = 1
-            -- pos[X] = 0
-            cursor_line += 1
-            -- pos[Y] += 16
-            i = j+1
-        end while
-    end if
-end procedure
-
-public procedure printf(integer fn, sequence format, object x)
--- override Euphoria built-in 
-    sequence s
-    if not window_exists or fn != STDOUT then
-        eu:printf(fn,format,x)
-    else
-        s = sprintf(format, x)
-        puts(fn,s)
-    end if
-end procedure
-
-public procedure print(integer fn, object x)
--- override Euphoria built-in 
-    sequence s
-    if not window_exists or fn != STDOUT then
-        eu:print(fn,x)
-    else
-        s = sprint(x)
-        puts(fn,s)
-    end if
-end procedure
-
-------------------------------------------------------------------------------------------------------
-
-sequence getc_buffer
-getc_buffer = {}
-
-public function gets(integer fn)
--- override Euphoria built-in 
-    sequence p
-    integer k
-    sequence buf
-    integer len,size
-    
-    if not window_exists or fn != STDIN then
-        return eu:gets(fn)
-    elsif length(getc_buffer) then
-        buf = getc_buffer
-        getc_buffer = {}
-        return buf
-    else
-        buf = {}
-        len = 0
-        size = 0
-        
-        p = get_position()
-        while 1 do
-            puts(1,'_')
-            position(p[1],p[2])
-            k = wait_key()
-            if k = '\r' then
-                puts(1,' ')
-                position(p[1],p[2])
-                exit
-            elsif k = 8 and len>0 then
-                position(p[1],p[2])
-                puts(1,' ')
-                p[2] -= 1
-                position(p[1],p[2])
-                puts(1,'_')
-                position(p[1],p[2])
-                len -= 1
-            elsif k >= ' ' and k < 256 then
-                -- position(p[1],p[2])
-                puts(1,k)
-                p[2] += 1
-                -- if p[2] >= 80 then
-                    -- p[2]=0
-                    -- p[1]+=1
-                -- end if
-                if len = size then
-                    buf &= k
-                    len += 1
-                    size += 1
-                else
-                    len += 1
-                    buf[len] = k
-                end if
-            end if
-        end while
-        
-        if len<size then
-            buf = buf[1..len]
-        end if
-        
-        return buf & '\r'
-    end if
-end function
-
-public function getc(integer fn)
--- override Euphoria built-in 
-    integer c
-    if not window_exists or fn != STDIN then
-        return eu:getc(fn)
-    elsif length(getc_buffer) = 0 then
-        getc_buffer = gets(fn)
-    end if
-    
-    c = getc_buffer[1]
-    getc_buffer = getc_buffer[2..$]
-    return c
-end function
 
 ------------------------------------------------------------------------------------------------------
 
