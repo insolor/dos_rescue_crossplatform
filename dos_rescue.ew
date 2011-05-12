@@ -626,7 +626,7 @@ end procedure
 
 atom points, npoints
 points = NULL
-npoints = 0
+npoints = -1
 public procedure draw_line(integer c, sequence xyarray)
     if window_exists then
         if not c then
@@ -636,9 +636,7 @@ public procedure draw_line(integer c, sequence xyarray)
         c_proc(SelectObject, {hdc, pens[1+c]})
         if length(xyarray)=2 then
             c_proc(MoveToEx, {hdc, xyarray[1][1], xyarray[1][2], 0})
-            for n = 2 to length(xyarray) do
-                c_proc(LineTo, {hdc, xyarray[n][1], xyarray[n][2]})
-            end for
+            c_proc(LineTo, {hdc, xyarray[2][1], xyarray[2][2]})
         else
             if length(xyarray)>npoints then
                 if points then
@@ -717,8 +715,4 @@ end procedure
 
 public procedure sound(integer freq)
     c_proc(Beep,{freq,50})
-end procedure
-
-public procedure use_vesa(integer i)
-    -- do nothing
 end procedure

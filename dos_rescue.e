@@ -328,3 +328,7 @@ public function getc(integer fn)
     getc_buffer = getc_buffer[2..$]
     return c
 end function
+
+public procedure use_vesa(integer i)
+    -- do nothing
+end procedure

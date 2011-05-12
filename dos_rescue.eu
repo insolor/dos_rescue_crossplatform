@@ -417,8 +417,3 @@ public procedure sound(integer freq)
 	XChangeKeyboardControl( display, KBBellPitch + KBBellDuration + KBBellPercent, kbc )
 	XBell( display, 50 )
 end procedure
-
-public procedure use_vesa(integer i)
-    -- do nothing
-end procedure
-
