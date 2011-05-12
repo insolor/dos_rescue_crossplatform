@@ -93,6 +93,10 @@ public integer cursor_line, cursor_column
 cursor_line = 1 cursor_column = 1
 public sequence char_buff
 char_buff = {}
+public integer last_text_color
+last_text_color = WHITE
+public integer last_bk_color
+last_bk_color = BLACK
 
 public function video_config()
     return video_modes[video_mode+1]
@@ -103,6 +107,48 @@ ifdef WINDOWS then
 elsedef
 	public include dos_rescue.eu as dos_rescue
 end ifdef
+
+public procedure clear_screen()
+-- override Euphoria built-in 
+    if not window_exists then
+        eu:clear_screen()
+    else
+        cursor_column = 1
+        cursor_line = 1
+        clear_region(0, 0, screen_size_x, screen_size_y)
+    end if
+end procedure
+
+public procedure set_color(integer color)
+-- all foreground color changes come through here
+    last_text_color = color
+end procedure
+
+public procedure set_bk_color(integer color)
+-- all background color changes come through here
+    last_bk_color = color
+end procedure
+
+public procedure text_color(integer color)
+-- was calling routine in graphics.e to set text color
+-- text or graphics modes - not really needed
+    if not window_exists then
+        graphics:text_color(color)
+    else
+        last_text_color = color
+    end if
+end procedure
+
+public procedure bk_color(integer color)
+-- was calling routine in graphics.e to set background color
+-- text or graphics modes - not really needed
+    if not window_exists then
+        graphics:bk_color(color)
+    else
+        last_bk_color = color
+        dos_rescue:clear_screen()
+    end if
+end procedure
 
 public function get_key()
 -- override Euphoria built-in

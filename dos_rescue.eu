@@ -41,17 +41,11 @@ type boolean(integer x)
     return x = TRUE or x = FALSE
 end type
 
-
 public boolean freeze_the_game
 freeze_the_game = FALSE
 
 public integer window_exists
 window_exists = FALSE
-
-public integer last_text_color
-last_text_color = WHITE
-public integer last_bk_color
-last_bk_color = BLACK
 
 function scale( integer color )
 	return floor( (color / 0x100 ) * 0x10000 ) + color
@@ -116,92 +110,16 @@ function get_gc( integer fore_color = last_text_color, integer bk_color = last_b
 	return gc
 end function
 
-
 for i = 1 to 1025 by 16 do
     color_map[i+16..i+31] = color_map[i..i+15]
 end for
-
-public procedure set_color(integer color)
--- all foreground color changes come through here
-    last_text_color = color
-end procedure
-
-public procedure set_bk_color(integer color)
--- all background color changes come through here
-    last_bk_color = color
-end procedure
-
-public procedure text_color(integer color)
--- was calling routine in graphics.e to set text color
--- text or graphics modes - not really needed
-    if not window_exists then
-        graphics:text_color(color)
-    else
-        last_text_color = color
-    end if
-end procedure
 
 public procedure clear_region(integer x1, integer y1, integer x2, integer y2)
 	polygon( last_bk_color, 1, { {x1, y1}, {x2, y1}, {x2, y2}, {x1, y2} } )
 end procedure
 
--- integer cursor_line, cursor_column
--- cursor_line = 1 cursor_column = 1
-
-public procedure clear_screen()
--- -- override Euphoria built-in 
-    if not window_exists then
-        eu:clear_screen()
-    else
-        cursor_column = 1
-        cursor_line = 1
-        clear_region(0, 0, screen_size_x, screen_size_y)
-    end if
-end procedure
-
-public procedure bk_color(integer color)
--- was calling routine in graphics.e to set background color
--- text or graphics modes - not really needed
-    if not window_exists then
-        graphics:bk_color(color)
-    else
-        last_bk_color = color
-        clear_screen()
-    end if
-end procedure
-
-
-public integer repaint
-repaint = -1
 integer abort_program
 abort_program = 0
-
-sequence map_key
-map_key = repeat(-1,#10000)
--- map_key[16] = 16 -- shift
--- map_key[17] = 17 -- ctrl
-map_key[33] = 329 -- page-up
-map_key[34] = 337 -- page-down
-map_key[35] = 335 -- end
-map_key[36] = 327 -- home
-map_key[37] = 331 -- left
-map_key[38] = 328 -- up
-map_key[39] = 333 -- right
-map_key[40] = 336 -- down
-map_key[45] = 338 -- insert
-map_key[46] = 339 -- delete
-map_key[112] = 315 -- F1
-map_key[113] = 316 -- F2
-map_key[114] = 317 -- F3
-map_key[115] = 318 -- F4
-map_key[116] = 319 -- F5
-map_key[117] = 320 -- F6
-map_key[118] = 321 -- F7
-map_key[119] = 322 -- F8
-map_key[120] = 323 -- F9
--- map_key[121] = 324 -- F10
-map_key[122] = 389 -- F11
-map_key[123] = 390 -- F12
 
 procedure blit()
 	XCopyArea( 
@@ -410,7 +328,6 @@ public procedure pixel(object c, sequence s)
 		blit()
 	end if
 end procedure
-
 
 -- public function get_pixel(sequence s)
 -- -- override Euphoria built-in 

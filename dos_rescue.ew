@@ -237,11 +237,6 @@ end if
 
 ------------------------------------------------------------------------------------------------------
 
-public integer last_text_color
-last_text_color = WHITE
-public integer last_bk_color
-last_bk_color = BLACK
-
 function make_color(integer red, integer green, integer blue)
     -- return blue*65536 + green*256 + red
     return blue*#10000 + green*#100 + red
@@ -305,54 +300,10 @@ end if
 brushes = {}
 pens = {}
 
-public procedure set_color(integer color)
--- all foreground color changes come through here
-    last_text_color = color
-end procedure
-
-public procedure set_bk_color(integer color)
--- all background color changes come through here
-    last_bk_color = color
-end procedure
-
-public procedure text_color(integer color)
--- was calling routine in graphics.e to set text color
--- text or graphics modes - not really needed
-    if not window_exists then
-        graphics:text_color(color)
-    else
-        last_text_color = color
-    end if
-end procedure
-
 public procedure clear_region(integer x1, integer y1, integer x2, integer y2)
     c_proc(SelectObject, {hdc, pens[1+last_bk_color]})
     c_proc(SelectObject, {hdc, brushes[1+last_bk_color]})
     c_proc(Rectangle, {hdc, x1, y1, x2, y2}) -- last row and column are not drawn
-end procedure
-
-
-
-public procedure clear_screen()
--- override Euphoria built-in 
-    if not window_exists then
-        eu:clear_screen()
-    else
-        cursor_column = 1
-        cursor_line = 1
-        clear_region(0, 0, screen_size_x, screen_size_y)
-    end if
-end procedure
-
-public procedure bk_color(integer color)
--- was calling routine in graphics.e to set background color
--- text or graphics modes - not really needed
-    if not window_exists then
-        graphics:bk_color(color)
-    else
-        last_bk_color = and_bits(color_mask,color)
-        clear_screen()
-    end if
 end procedure
 
 ------------------------------------------------------------------------------------------------------
