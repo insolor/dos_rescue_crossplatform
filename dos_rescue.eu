@@ -47,6 +47,9 @@ freeze_the_game = FALSE
 public integer window_exists
 window_exists = FALSE
 
+integer redisplay
+redisplay = FALSE
+
 function scale( integer color )
 	return floor( (color / 0x100 ) * 0x10000 ) + color
 end function
@@ -164,7 +167,8 @@ procedure main( integer first_time )
 			XDefaultDepth( display, screen ) )
 		
 		atom default_gcontext = XGContextFromGC( XDefaultGC( display, screen ) )
-		clear_screen()
+		
+		clear_region(0,0,screen_size_x,screen_size_y)
 		
 		XSelectInput( display, window, ExposureMask + KeyPressMask + PointerMotionMask + ButtonPressMask + ButtonReleaseMask )
 	end if
@@ -223,7 +227,7 @@ procedure main( integer first_time )
 				-- assume hdc has now been set
 				return
 			end if
-            
+			
 			if freeze_the_game then
 				sleep( 0.001 ) -- sleep n * .001 seconds 
 				task_clock_stop()
@@ -234,6 +238,11 @@ procedure main( integer first_time )
 					task_yield()
 				end if
 			else
+				if redisplay then
+				    blit()
+				    redisplay = FALSE
+				end if
+				
 				task_yield()
 			end if
 			
@@ -325,7 +334,8 @@ public procedure pixel(object c, sequence s)
 				xstart += pcount
 			end while  
 		end if
-		blit()
+		-- blit()
+		redisplay = TRUE
 	end if
 end procedure
 
@@ -367,7 +377,8 @@ public procedure ellipse(integer color, integer fill, sequence coord1, sequence 
 		else
 			XDrawArc( display, pixmap, gc, coord1[1], coord1[2], coord2[1], coord2[2], 0, 360 * 64 )
 		end if
-		blit()
+		-- blit()
+		redisplay = TRUE
 	end if
 end procedure
 
@@ -378,7 +389,8 @@ public procedure draw_line(integer c, sequence xyarray)
 	end if
 	gc = get_gc( c )
 	XDrawLine( display, pixmap, gc, floor( xyarray ) )
-	blit()
+	-- blit()
+	redisplay = TRUE
 end procedure
 
 public procedure polygon(integer c, integer fill, sequence xyarray)
@@ -394,7 +406,8 @@ public procedure polygon(integer c, integer fill, sequence xyarray)
 		else
 			XDrawPolygon( display, pixmap, gc, xyarray )
 		end if
-		blit()
+		-- blit()
+		redisplay = TRUE
 	end if
 end procedure
 
@@ -404,7 +417,8 @@ public
 procedure putsxy(sequence pos, sequence string, 
 						integer fcolor, integer bcolor)
 	XDrawImageString( display, pixmap, get_gc( fcolor, bcolor ), pos[1], pos[2], string )
-	blit()
+	-- blit()
+	redisplay = TRUE
 end procedure
 
 ------------------------------------------------------------------------------------------------------
