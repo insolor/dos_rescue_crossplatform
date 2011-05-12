@@ -423,8 +423,8 @@ end procedure
 
 ------------------------------------------------------------------------------------------------------
 
+atom kbc = allocate( XKeyboardControl_SIZE, 1 )
 public procedure sound(integer freq)
-	atom kbc = allocate( XKeyboardControl_SIZE, 1 )
 	poke4( kbc + XKeyboardControl_bell_pitch, freq )
 	poke4( kbc + XKeyboardControl_bell_duration, 500 )
 	poke4( kbc + XKeyboardControl_bell_percent, 50 )
