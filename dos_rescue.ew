@@ -11,7 +11,8 @@ type boolean(integer x)
 end type
 
 constant CS_HREDRAW = 2,
-         CS_VREDRAW = 1
+         CS_VREDRAW = 1,
+         CS_OWNDC = 32
 
 public constant SW_SHOWNORMAL = 1
 
@@ -69,171 +70,72 @@ freeze_the_game = FALSE
 public integer window_exists
 window_exists = FALSE
 
-
-integer LoadIcon, LoadCursor, RegisterClassEx, GetWindowRect,
-        CreateWindow, ShowWindow, UpdateWindow, GetMessage, PeekMessage,
-        TranslateMessage, DispatchMessage, BeginPaint, DestroyWindow,
-        GetClientRect, DrawText, EndPaint, PostQuitMessage, DefWindowProc,
-        SetTimer, ReleaseDC, ExitProcess, SetWindowPos
-
-public integer ShellExecute
-
 atom ps, rect
 ps = allocate(64)
 rect = allocate(16) 
 
-integer GetStockObject
-integer CreateDC, GetDC, MoveToEx, LineTo, Ellipse, Arc, CreatePen, SelectObject,
-        SetPixelV, GetPixel, SetTextColor, SetBkColor, SetBkMode, Polyline,
-        Rectangle, CreateSolidBrush, DeleteObject, SetDIBitsToDevice, Polygon
-
-public integer PlaySound, Sleep, Beep
-
 atom hdc
 hdc = NULL
 
-procedure not_found(sequence name)
-    crash("%s",{"Couldn't find " & name & '\n'})
-end procedure
-
-function link_c_func(atom dll, sequence name, sequence args, atom result)
--- dynamically link a C routine as a Euphoria function
-    integer handle
-
-    handle = define_c_func(dll, name, args, result)
-    if handle = -1 then
-        not_found(name)
-    else
-        return handle
-    end if
-end function
-
-function link_c_proc(atom dll, sequence name, sequence args)
--- dynamically link a C routine as a Euphoria procedure
-    integer handle
-
-    handle = define_c_proc(dll, name, args)
-    if handle = -1 then
-        not_found(name)
-    else
-        return handle
-    end if
-end function
-
-procedure link_dll_routines()
--- get handles to all dll routines that we need
-    atom user32, gdi32, winmm, kernel32, shell32
-    
-    -- open the .DLL files
-    user32 = open_dll("user32.dll")
-    if user32 = NULL then
-        not_found("user32.dll")
-    end if
-    
-    kernel32 = open_dll("kernel32.dll")
-    if kernel32 = NULL then
-        not_found("kernel32.dll")
-    end if
-    
+-- open the .DLL files
+constant
+    kernel32 = open_dll("kernel32.dll"),
+    user32 = open_dll("user32.dll"),
     gdi32 = open_dll("gdi32.dll")
-    if gdi32 = NULL then
-        not_found("gdi32.dll")
-    end if
-    
-    winmm = open_dll("winmm.dll")
-    if winmm = NULL then
-        not_found("winmm.dll")
-    end if
-    
-    shell32 = open_dll("shell32.dll")
-    if shell32 = NULL then
-        not_found("shell32.dll")
-    end if
-    
-    -- link the C routines
-    Sleep = define_c_proc(kernel32, "Sleep", {C_INT})
-    ExitProcess = link_c_proc(kernel32, "ExitProcess", {C_INT})
-    LoadIcon = link_c_func(user32, "LoadIconA", {C_POINTER, C_INT}, C_INT)
-    LoadCursor = link_c_func(user32, "LoadCursorA", {C_POINTER, C_INT}, C_INT)
-    GetStockObject = link_c_func(gdi32, "GetStockObject", {C_INT}, C_INT)
-    RegisterClassEx = link_c_func(user32, "RegisterClassExA", {C_POINTER}, C_INT)
-    CreateWindow = link_c_func(user32, "CreateWindowExA", 
+
+-- link the C routines
+constant
+    Sleep = define_c_proc(kernel32, "Sleep", {C_INT}),
+    Beep = define_c_proc(kernel32, "Beep", {C_LONG,C_LONG}),
+    ExitProcess = define_c_proc(kernel32, "ExitProcess", {C_INT}),
+    LoadIcon = define_c_func(user32, "LoadIconA", {C_POINTER, C_INT}, C_INT),
+    LoadCursor = define_c_func(user32, "LoadCursorA", {C_POINTER, C_INT}, C_INT),
+    RegisterClassEx = define_c_func(user32, "RegisterClassExA", {C_POINTER}, C_INT),
+    CreateWindow = define_c_func(user32, "CreateWindowExA", 
         {C_INT, C_INT,C_INT,C_INT,C_INT,C_INT,C_INT,C_INT,C_INT,C_INT,C_INT,C_INT},
-        C_INT)
-    ShowWindow = link_c_proc(user32, "ShowWindow", {C_INT, C_INT})
-    UpdateWindow = link_c_proc(user32, "UpdateWindow", {C_INT})
-    GetMessage = link_c_func(user32, "GetMessageA",
-                  {C_INT, C_INT, C_INT, C_INT}, C_INT)
-    PeekMessage = link_c_func(user32, "PeekMessageA",
-                  {C_INT, C_INT, C_INT, C_INT, C_INT}, C_INT)
-    TranslateMessage = link_c_proc(user32, "TranslateMessage", {C_INT})
-    DispatchMessage = link_c_proc(user32, "DispatchMessageA", {C_INT})
-    DestroyWindow = link_c_proc(user32, "DestroyWindow", {C_INT})
-    PlaySound = link_c_proc(winmm, "PlaySound", {C_INT, C_INT, C_INT})
-    BeginPaint = link_c_func(user32, "BeginPaint", {C_INT, C_INT}, C_INT)
-    GetClientRect = link_c_proc(user32, "GetClientRect", {C_INT, C_INT})
-    GetWindowRect = link_c_proc(user32, "GetWindowRect", {C_INT, C_INT})
-    DrawText = link_c_proc(user32, "DrawTextA", 
-               {C_INT, C_INT, C_INT, C_POINTER, C_INT})
-    EndPaint = link_c_proc(user32, "EndPaint", {C_INT, C_INT})
-    PostQuitMessage = link_c_proc(user32, "PostQuitMessage", {C_INT})
-    DefWindowProc = link_c_func(user32, "DefWindowProcA", 
-          {C_INT, C_INT, C_INT, C_INT}, C_INT)
-    SetTimer = link_c_proc(user32, "SetTimer", {C_INT, C_INT, C_INT, C_INT})
-    GetDC = link_c_func(user32, "GetDC", {C_INT}, C_INT)
-    ReleaseDC = link_c_proc(user32, "ReleaseDC", {C_INT, C_INT})
-    SetWindowPos = link_c_proc(user32, "SetWindowPos", repeat(C_LONG, 7))
-    CreateDC = link_c_func(gdi32, "CreateDCA", 
-                          {C_POINTER, C_POINTER, C_POINTER, C_POINTER},
-                          C_LONG)
-
-    MoveToEx = link_c_proc(gdi32, "MoveToEx", 
-                          {C_LONG, C_LONG, C_LONG, C_POINTER})
-
-    LineTo = link_c_proc(gdi32, "LineTo", {C_LONG, C_LONG, C_LONG})
-
-    SetPixelV = link_c_proc(gdi32, "SetPixelV", {C_LONG, C_LONG, C_LONG, C_LONG})
-
-    GetPixel = link_c_func(gdi32, "GetPixel", {C_LONG, C_LONG, C_LONG},
-                         C_LONG)
-    Ellipse = link_c_proc(gdi32, "Ellipse", {C_LONG, C_LONG, C_LONG, C_LONG, C_LONG})
-    
-    Arc = link_c_proc(gdi32, "Arc", repeat(C_LONG,9))
-    
-    SelectObject = link_c_proc(gdi32, "SelectObject", {C_LONG, C_LONG})
-
-    SetTextColor = link_c_proc(gdi32, "SetTextColor", {C_LONG, C_LONG})
-    
-    SetBkColor = link_c_proc(gdi32, "SetBkColor", {C_LONG, C_LONG})
-    
-    SetBkMode = link_c_proc(gdi32, "SetBkMode", {C_LONG, C_LONG})
-    
-    CreatePen = link_c_func(gdi32, "CreatePen", {C_LONG, C_LONG, C_LONG}, 
-                                                 C_LONG)
-    Rectangle = link_c_proc(gdi32, "Rectangle", 
-                            {C_LONG, C_LONG, C_LONG, C_LONG, C_LONG})
-    
-    Polygon = link_c_proc(gdi32, "Polygon", {C_LONG, C_LONG, C_LONG})
-    
-    Polyline = link_c_proc(gdi32, "Polyline", {C_LONG, C_LONG, C_LONG})
-    
-    CreateSolidBrush = link_c_func(gdi32, "CreateSolidBrush", {C_LONG}, C_LONG)
-    
-    DeleteObject = link_c_proc(gdi32, "DeleteObject", {C_LONG})
-    
-    SetDIBitsToDevice = link_c_proc(gdi32, "SetDIBitsToDevice", 
-                     {C_LONG, C_LONG, C_LONG, C_LONG, C_LONG, C_LONG, C_LONG, 
-                      C_LONG, C_LONG, C_LONG, C_LONG, C_LONG})
-
-    ShellExecute = link_c_proc(shell32, "ShellExecuteA", 
-                    {C_LONG, C_LONG, C_LONG, C_LONG, C_LONG, C_LONG})
-    
-    Beep = link_c_proc(kernel32, "Beep", {C_LONG,C_LONG})
-end procedure
-
-if platform() = WIN32 then
-    link_dll_routines()
-end if
+        C_INT),
+    ShowWindow = define_c_proc(user32, "ShowWindow", {C_INT, C_INT}),
+    UpdateWindow = define_c_proc(user32, "UpdateWindow", {C_INT}),
+    GetMessage = define_c_func(user32, "GetMessageA",
+                  {C_INT, C_INT, C_INT, C_INT}, C_INT),
+    PeekMessage = define_c_func(user32, "PeekMessageA",
+                  {C_INT, C_INT, C_INT, C_INT, C_INT}, C_INT),
+    TranslateMessage = define_c_proc(user32, "TranslateMessage", {C_INT}),
+    DispatchMessage = define_c_proc(user32, "DispatchMessageA", {C_INT}),
+    DestroyWindow = define_c_proc(user32, "DestroyWindow", {C_INT}),
+    BeginPaint = define_c_func(user32, "BeginPaint", {C_INT, C_INT}, C_INT),
+    GetClientRect = define_c_proc(user32, "GetClientRect", {C_INT, C_INT}),
+    GetWindowRect = define_c_proc(user32, "GetWindowRect", {C_INT, C_INT}),
+    DrawText = define_c_proc(user32, "DrawTextA", 
+               {C_INT, C_INT, C_INT, C_POINTER, C_INT}),
+    EndPaint = define_c_proc(user32, "EndPaint", {C_INT, C_INT}),
+    PostQuitMessage = define_c_proc(user32, "PostQuitMessage", {C_INT}),
+    DefWindowProc = define_c_func(user32, "DefWindowProcA", 
+          {C_INT, C_INT, C_INT, C_INT}, C_INT),
+    SetTimer = define_c_proc(user32, "SetTimer", {C_INT, C_INT, C_INT, C_INT}),
+    GetDC = define_c_func(user32, "GetDC", {C_INT}, C_INT),
+    ReleaseDC = define_c_proc(user32, "ReleaseDC", {C_INT, C_INT}),
+    SetWindowPos = define_c_proc(user32, "SetWindowPos", repeat(C_LONG, 7)),
+    GetStockObject = define_c_func(gdi32, "GetStockObject", {C_INT}, C_INT),
+    CreateDC = define_c_func(gdi32, "CreateDCA", 
+                          {C_POINTER, C_POINTER, C_POINTER, C_POINTER}, C_LONG),
+    MoveToEx = define_c_proc(gdi32, "MoveToEx", {C_LONG, C_LONG, C_LONG, C_POINTER}),
+    LineTo = define_c_proc(gdi32, "LineTo", {C_LONG, C_LONG, C_LONG}),
+    SetPixelV = define_c_proc(gdi32, "SetPixelV", {C_LONG, C_LONG, C_LONG, C_LONG}),
+    GetPixel = define_c_func(gdi32, "GetPixel", {C_LONG, C_LONG, C_LONG}, C_LONG),
+    Ellipse = define_c_proc(gdi32, "Ellipse", {C_LONG, C_LONG, C_LONG, C_LONG, C_LONG}),
+    Arc = define_c_proc(gdi32, "Arc", repeat(C_LONG,9)),
+    SelectObject = define_c_proc(gdi32, "SelectObject", {C_LONG, C_LONG}),
+    SetTextColor = define_c_proc(gdi32, "SetTextColor", {C_LONG, C_LONG}),
+    SetBkColor = define_c_proc(gdi32, "SetBkColor", {C_LONG, C_LONG}),
+    SetBkMode = define_c_proc(gdi32, "SetBkMode", {C_LONG, C_LONG}),
+    CreatePen = define_c_func(gdi32, "CreatePen", {C_LONG, C_LONG, C_LONG}, C_LONG),
+    FillRect = define_c_proc(user32, "FillRect", {C_LONG, C_LONG, C_LONG}),
+    Polygon = define_c_proc(gdi32, "Polygon", {C_LONG, C_LONG, C_LONG}),
+    Polyline = define_c_proc(gdi32, "Polyline", {C_LONG, C_LONG, C_LONG}),
+    CreateSolidBrush = define_c_func(gdi32, "CreateSolidBrush", {C_LONG}, C_LONG),
+    DeleteObject = define_c_proc(gdi32, "DeleteObject", {C_LONG}),
+    $
 
 ------------------------------------------------------------------------------------------------------
 
@@ -291,19 +193,14 @@ sequence pens -- set up 16 predefined pens
 constant PS_SOLID = 0
 
 constant NULL_BRUSH = 5
-atom null_brush
-
-if platform() = WIN32 then
-    null_brush = c_func(GetStockObject, {NULL_BRUSH})
-end if
+constant null_brush = c_func(GetStockObject, {NULL_BRUSH})
 
 brushes = {}
 pens = {}
 
 public procedure clear_region(integer x1, integer y1, integer x2, integer y2)
-    c_proc(SelectObject, {hdc, pens[1+last_bk_color]})
-    c_proc(SelectObject, {hdc, brushes[1+last_bk_color]})
-    c_proc(Rectangle, {hdc, x1, y1, x2, y2}) -- last row and column are not drawn
+    poke4(rect, {x1, y1, x2, y2})
+    c_proc(FillRect, hdc & rect & brushes[1+last_bk_color])
 end procedure
 
 ------------------------------------------------------------------------------------------------------
@@ -373,15 +270,14 @@ function WndProc(atom hwnd, atom iMsg, atom wParam, atom lParam)
         
         c_proc(SetWindowPos, hwnd & 0 & winsize & HWND_TOP)
         
+        hdc = c_func(GetDC, {hwnd})
+        c_proc(SelectObject, 
+                  {hdc, c_func(GetStockObject, {SYSTEM_FIXED_FONT})})
+        
         return 0
     
     elsif iMsg = WM_PAINT then
         hdc = c_func(BeginPaint, {hwnd, ps})
-        -- c_proc(GetClientRect, {hwnd, rect})
-        
-        hdc = c_func(GetDC, {hwnd})
-        c_proc(SelectObject, 
-                  {hdc, c_func(GetStockObject, {SYSTEM_FIXED_FONT})})
         
         if repaint != -1 then
             call_proc(repaint, {})
@@ -391,6 +287,8 @@ function WndProc(atom hwnd, atom iMsg, atom wParam, atom lParam)
         end if
         
         c_proc(EndPaint, {hwnd, ps})
+        
+        hdc = c_func(GetDC, {hwnd})
         
         return 0
         
@@ -473,7 +371,7 @@ procedure WinMain(boolean first_time)
     
         wndclass = allocate(SIZE_OF_WNDCLASS)
         poke4(wndclass + cbSize, SIZE_OF_WNDCLASS)
-        poke4(wndclass + style, or_bits(CS_HREDRAW, CS_VREDRAW))
+        poke4(wndclass + style, or_all({CS_HREDRAW, CS_VREDRAW, CS_OWNDC}))
         poke4(wndclass + lpfnWndProc, WndProcAddress)
         poke4(wndclass + cbClsExtra, 0)
         poke4(wndclass + cbWndExtra, 0)
