@@ -10,7 +10,7 @@ include select.e
 use_vesa(1) -- for modes 256...261
 
 --constant GRAPHICS_MODE = 18 -- VGA
-constant GRAPHICS_MODE = 261 -- SVGA
+constant GRAPHICS_MODE = 259 -- SVGA
 
 -- constant MAX_POPULATION = 125          -- maximum number of circles
 constant MAX_POPULATION = 255          -- maximum number of circles

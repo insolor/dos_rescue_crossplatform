@@ -5,7 +5,7 @@
 -- press space bar to see a new pattern
 -- press any other key to quit
 
-constant GRAPHICS_MODE = 261--18 -- SVGA, if this fails try mode 18 
+constant GRAPHICS_MODE = 259--18 -- SVGA, if this fails try mode 18 
 			     -- see also euphoria\include\graphics.e
 without type_check
 

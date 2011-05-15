@@ -14,7 +14,7 @@
 -- and it will be added to your list of choices for "wallpaper". 
 -- Right click on your wallpaper to change it (Win95/98).
 
-constant GRAPHICS_MODE = 261
+constant GRAPHICS_MODE = 259
 		       --  18 is  640x480  16 color  VGA (guaranteed to work)
 		       -- 257 is  640x480 256 color SVGA
 		       -- 259 is  800x600 256 color SVGA
