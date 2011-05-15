@@ -217,7 +217,7 @@ public procedure puts(integer fn, object str)
             if j = 0 then
                 j = length(str)+1
             end if
-            pos = (cursor_column-1)*8 & (cursor_line)*16
+            pos = (cursor_column-1)*8 & (cursor_line-1)*16
             putsxy(pos,str[i..j-1],last_text_color,last_bk_color)
             cursor_column += j-i
             if j>length(str) then

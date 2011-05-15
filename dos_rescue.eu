@@ -416,7 +416,7 @@ end procedure
 public
 procedure putsxy(sequence pos, sequence string, 
 						integer fcolor, integer bcolor)
-	XDrawImageString( display, pixmap, get_gc( fcolor, bcolor ), pos[1], pos[2], string )
+	XDrawImageString( display, pixmap, get_gc( fcolor, bcolor ), pos[1], pos[2]+16, string )
 	-- blit()
 	redisplay = TRUE
 end procedure
