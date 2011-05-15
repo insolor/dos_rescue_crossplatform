@@ -5,6 +5,7 @@ public include xkeysym.e
 include std/dll.e
 include std/machine.e
 include std/sequence.e
+include std/error.e
 
 integer next_offset = 0
 function offset( atom data_type, integer use_offset = next_offset )
@@ -350,7 +351,11 @@ public constant
 	$
 
 
-constant X11 = open_dll( "libX11.so" )
+constant X11 = open_dll( "libX11.so.6" )
+
+if X11 = 0 then
+    crash("Couldn't find %s\n", {"libX11.so.6"})
+end if
 
 constant
 	XOpenDisplay_cid        = define_c_func( X11, "XOpenDisplay", { C_POINTER }, C_POINTER  ),
