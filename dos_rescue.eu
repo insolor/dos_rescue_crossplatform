@@ -404,7 +404,8 @@ public procedure polygon(integer c, integer fill, sequence xyarray)
 		if fill then
 			XFillPolygon( display, pixmap, gc, xyarray )
 		else
-			XDrawPolygon( display, pixmap, gc, xyarray )
+			xyarray = append( xyarray, xyarray[$] )
+			XDrawLines( display, pixmap, gc, xyarray )
 		end if
 		-- blit()
 		redisplay = TRUE
