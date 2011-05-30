@@ -173,6 +173,8 @@ constant
 
 ------------------------------------------------------------------------------------------------------
 
+atom bytes_per_line
+
 function make_color(integer red, integer green, integer blue)
     -- return blue*65536 + green*256 + red
     return blue*#10000 + green*#100 + red
@@ -555,6 +557,7 @@ public function graphics_mode(integer m)
         lines = vc[VC_LINES]
         screen_size_x = vc[VC_XPIXELS]
         screen_size_y = vc[VC_YPIXELS]
+        bytes_per_line = and_bits(screen_size_x+3,-4)
         hdcMem = c_func(CreateCompatibleDC,{hdcWindow})
         hBitmap = create_dib_section(hdcWindow, screen_size_x, screen_size_y, reverse_color(color_map))
         c_proc(SelectObject,{hdcMem,hBitmap})
@@ -610,83 +613,100 @@ public function palette(integer color_index, sequence new_color_triple)
     end if
 end function
 
-public procedure simplepixel(object c, sequence s)
-   integer xstart, y
-   c = and_bits(color_mask,c)
-   if atom(c) then
-       -- inlined for speed
-       c_proc(SetPixelV, {hdcMem, s[1], s[2], color_map[1+c]})
-   else
-       y = s[2]
-       xstart = s[1]
-       for i = 1 to length(c) do
-           c_proc(SetPixelV, {hdcMem, xstart, y, color_map[1+c[i]]})
-           xstart += 1
-       end for  
-   end if
-   redisplay = TRUE
-end procedure
-
-
-public procedure pixel(object c, sequence s)
--- override Euphoria built-in 
-    integer i, xstart, y, pcount, color
+-- public procedure pixel(object c, sequence s)
+-- -- override Euphoria built-in 
+    -- integer i, xstart, y, pcount, color
     
-    if window_exists then
-        c = and_bits(color_mask,c)
-        if atom(c) then
-           -- single pixel
-           c_proc(SetPixelV, {hdcMem, s[1], s[2], color_map[1+c]})
+    -- if window_exists then
+        -- c = and_bits(color_mask,c)
+        -- if atom(c) then
+           -- -- single pixel
+           -- c_proc(SetPixelV, {hdcMem, s[1], s[2], color_map[1+c]})
             
-        else
-            -- several pixels on one row
-            y = s[2]
-            xstart = s[1]
-            i = 1
-            c_proc(MoveToEx, {hdcMem, xstart, y, 0})
-            while i <= length(c) do
-                pcount = 1
-                color = c[i]
-                -- how many in a row are the same color?
-                while i + pcount <= length(c) and c[i+pcount] = color do
-                    pcount += 1
-                end while
-                if pcount >= 2 then
-                    c_proc(SelectObject, {hdcMem, pens[1+color]})
-                    c_proc(LineTo, {hdcMem, xstart+pcount, y})
-                    i += pcount
-                else
-                    -- do one pixel
-                    c_proc(SetPixelV, {hdcMem, xstart, y, color_map[1+c[i]]})
-                    c_proc(MoveToEx, {hdcMem, xstart+1, y, 0})
-                    i += 1
-                end if
-                xstart += pcount
-            end while  
+        -- else
+            -- -- several pixels on one row
+            -- y = s[2]
+            -- xstart = s[1]
+            -- i = 1
+            -- c_proc(MoveToEx, {hdcMem, xstart, y, 0})
+            -- while i <= length(c) do
+                -- pcount = 1
+                -- color = c[i]
+                -- -- how many in a row are the same color?
+                -- while i + pcount <= length(c) and c[i+pcount] = color do
+                    -- pcount += 1
+                -- end while
+                -- if pcount >= 2 then
+                    -- c_proc(SelectObject, {hdcMem, pens[1+color]})
+                    -- c_proc(LineTo, {hdcMem, xstart+pcount, y})
+                    -- i += pcount
+                -- else
+                    -- -- do one pixel
+                    -- c_proc(SetPixelV, {hdcMem, xstart, y, color_map[1+c[i]]})
+                    -- c_proc(MoveToEx, {hdcMem, xstart+1, y, 0})
+                    -- i += 1
+                -- end if
+                -- xstart += pcount
+            -- end while  
+        -- end if
+        -- redisplay = TRUE
+    -- end if
+-- end procedure
+
+
+-- public function get_pixel(sequence s)
+-- -- override Euphoria built-in 
+    -- sequence p
+    -- integer xstart, y
+    
+    -- if length(s)<2 or length(s)>3 then
+        -- crash("get_pixel must be supplied a sequence of length 2 or 3.")
+    -- elsif length(s) = 2 then
+        -- return c_func(GetPixel, {hdcMem, s[1], s[2]})
+    -- else
+        -- p = repeat(0, s[3])
+        -- y = s[2]
+        -- xstart = s[1]
+        -- for i = 1 to s[3] do
+            -- p[i] = c_func(GetPixel, {hdcMem, xstart, y}) 
+            -- xstart += 1
+        -- end for
+        -- return p
+    -- end if
+-- end function
+
+global procedure pixel(object c, sequence xy)
+    atom off
+    if window_exists and xy[1] >= 0 and xy[1] < screen_size_x and
+            xy[2] >= 0 and xy[2] < screen_size_y then
+        xy = floor(xy)
+        if sequence(c) and length(c) >= screen_size_x-xy[1] then
+            c = c[1..screen_size_x-xy[1]-1]
         end if
+        c = and_bits(color_mask,c)
+        off = peek4u(ppvBits) + xy[1] + xy[2]*bytes_per_line
+        poke(off,c)
         redisplay = TRUE
     end if
 end procedure
 
-
-public function get_pixel(sequence s)
--- override Euphoria built-in 
-    sequence p
-    integer xstart, y
-    
-    if length(s)<2 or length(s)>3 then
-        crash("get_pixel must be supplied a sequence of length 2 or 3.")
-    elsif length(s) = 2 then
-        return c_func(GetPixel, {hdcMem, s[1], s[2]})
+global function get_pixel(sequence xyn)
+    atom off
+    if window_exists and xyn[1] >= 0 and xyn[1] < screen_size_x and
+            xyn[2] >= 0 and xyn[2] < screen_size_y then
+        xyn = floor(xyn)
+        off = peek4u(ppvBits) + xyn[1] + xyn[2]*bytes_per_line
+        if length(xyn) = 2 then
+            return peek(off)
+        elsif length(xyn) = 3 then
+            if xyn[3]+xyn[1]>=screen_size_x then
+                return peek({off,screen_size_x-xyn[1]-1}) & repeat(0,xyn[3]+xyn[1]-screen_size_x)
+            else
+                return peek({off,xyn[3]})
+            end if
+        end if
     else
-        p = repeat(0, s[3])
-        y = s[2]
-        xstart = s[1]
-        for i = 1 to s[3] do
-            p[i] = c_func(GetPixel, {hdcMem, xstart, y}) 
-            xstart += 1
-        end for
-        return p
+        return -1
     end if
 end function
 
