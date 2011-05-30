@@ -31,6 +31,8 @@ constant IDI_APPLICATION = 32512,
 
 constant SYSTEM_FIXED_FONT = 16
 
+constant SRCCOPY = #CC0020
+
 -- WNDCLASS
 constant cbSize = 0,
          style  = 4,
@@ -64,18 +66,43 @@ constant WM_CREATE = #0001,
          WM_QUIT = #12,
          WM_CLOSE = #10
 
+constant DIB_RGB_COLORS = 0
+
+-- PAINTSTRUCT
+constant rcPaint = 8
+
+-- BITMAPINFO
+constant bmiHeader = 0, bmiColors = 40
+
+constant
+    sizeofRGBQUAD = 4,
+    sizeofBITMAPFILEHEADER = 14,
+    sizeofBITMAPCOREHEADER = 12,
+    sizeofBITMAPINFOHEADER = 40,
+    -- sizeofBITMAPV4HEADER = 108,
+    -- sizeofBITMAPV5HEADER = 124,
+    $
+
+constant BI_RGB = 0
+
+constant OBJ_BITMAP = 7
+
 public boolean freeze_the_game
 freeze_the_game = FALSE
 
 public integer window_exists
 window_exists = FALSE
 
-atom ps, rect
-ps = allocate(64)
-rect = allocate(16) 
+integer redisplay
+redisplay = FALSE
 
-atom hdc
-hdc = NULL
+constant
+    ps = allocate(64),
+    rect = allocate(16),
+    pBmi = allocate(sizeofBITMAPINFOHEADER + sizeofRGBQUAD*256)
+
+atom hdcWindow, hdcMem, hBitmap
+hdcWindow = NULL
 
 -- open the .DLL files
 constant
@@ -103,6 +130,7 @@ constant
     TranslateMessage = define_c_proc(user32, "TranslateMessage", {C_INT}),
     DispatchMessage = define_c_proc(user32, "DispatchMessageA", {C_INT}),
     DestroyWindow = define_c_proc(user32, "DestroyWindow", {C_INT}),
+    InvalidateRect = define_c_proc(user32, "InvalidateRect", {C_LONG, C_LONG, C_LONG}),
     BeginPaint = define_c_func(user32, "BeginPaint", {C_INT, C_INT}, C_INT),
     GetClientRect = define_c_proc(user32, "GetClientRect", {C_INT, C_INT}),
     GetWindowRect = define_c_proc(user32, "GetWindowRect", {C_INT, C_INT}),
@@ -135,6 +163,12 @@ constant
     Polyline = define_c_proc(gdi32, "Polyline", {C_LONG, C_LONG, C_LONG}),
     CreateSolidBrush = define_c_func(gdi32, "CreateSolidBrush", {C_LONG}, C_LONG),
     DeleteObject = define_c_proc(gdi32, "DeleteObject", {C_LONG}),
+    CreateCompatibleDC = define_c_func(gdi32, "CreateCompatibleDC", {C_LONG}, C_LONG),
+    CreateDIBSection = define_c_func(gdi32, "CreateDIBSection",
+        {C_LONG, C_LONG, C_LONG, C_LONG, C_LONG, C_LONG}, C_LONG),
+    SetDIBColorTable = define_c_proc(gdi32, "SetDIBColorTable", {C_LONG, C_LONG, C_LONG, C_LONG}),
+    BitBlt = define_c_proc(gdi32, "BitBlt",repeat(C_LONG,9)),
+    DeleteDC = define_c_proc(gdi32, "DeleteDC", {C_LONG}),
     $
 
 ------------------------------------------------------------------------------------------------------
@@ -147,6 +181,21 @@ end function
 function make_color_s(sequence s)
 	s = s * {#1_0000,#100,1}
 	return s[1] + s[2] + s[3]
+end function
+
+function reverse_color(object colors)
+    if atom(colors) then
+        colors = and_bits(colors,#FF)*#10000 +
+            and_bits(colors,#FF00) +
+            floor(and_bits(colors,#FF0000)/#10000)
+    else
+        for i = 1 to length(colors) do
+            colors[i] = and_bits(colors[i],#FF)*#10000 +
+                and_bits(colors[i],#FF00) +
+                floor(and_bits(colors[i],#FF0000)/#10000)
+        end for
+    end if
+    return colors
 end function
 
 sequence color_map
@@ -200,7 +249,33 @@ pens = {}
 
 public procedure clear_region(integer x1, integer y1, integer x2, integer y2)
     poke4(rect, {x1, y1, x2, y2})
-    c_proc(FillRect, hdc & rect & brushes[1+last_bk_color])
+    c_proc(FillRect, hdcMem & rect & brushes[1+last_bk_color])
+    redisplay = TRUE
+end procedure
+
+constant ppvBits = allocate(4)
+function create_dib_section(atom hdcWindow, integer width, integer height, sequence color_map)
+    poke4(pBmi+bmiHeader, {
+        sizeofBITMAPINFOHEADER, -- dword bcSize
+        width, -- dword bcWidth,
+        -height, -- dword bcHeight
+        1 + #10000*8, -- word bcPlanes, word bcBitCount
+        BI_RGB, -- dword biCompression
+        0, -- dword biSizeImage
+        12500, -- dword biXPelsPerMeter
+        12500, -- dword biYPelsPerMeter
+        length(color_map), -- dword biClrUsed 
+        0 -- dword biClrImportant -- all colors are important
+    })
+    
+    poke4(pBmi+bmiColors, color_map)
+    
+    return c_func(CreateDIBSection,{hdcWindow, pBmi, DIB_RGB_COLORS, ppvBits, NULL, NULL})
+end function
+
+procedure set_dib_color_table(atom hdcWindow, integer start_index, integer n, object colors)
+    poke4(pBmi+bmiColors, colors)
+    c_proc(SetDIBColorTable,{hdcWindow, start_index, n, pBmi+bmiColors})
 end procedure
 
 ------------------------------------------------------------------------------------------------------
@@ -248,15 +323,10 @@ constant HWND_TOP = 0
 
 function WndProc(atom hwnd, atom iMsg, atom wParam, atom lParam)
 -- callback routine to handle Window class
-    sequence winsize,clientsize,seqrect,vc
+    sequence winsize,clientsize,seqrect
     
     if iMsg = WM_CREATE then
         window_exists = TRUE
-        vc = video_modes[video_mode+1]
-        screen_size_x = vc[VC_XPIXELS]
-        screen_size_y = vc[VC_YPIXELS]
-        columns = vc[VC_COLUMNS]
-        lines = vc[VC_LINES]
         c_proc(GetWindowRect,{hwnd,rect})
         winsize = peek4u({rect,4})
         winsize[3] -= winsize[1]
@@ -265,30 +335,22 @@ function WndProc(atom hwnd, atom iMsg, atom wParam, atom lParam)
         c_proc(GetClientRect, {hwnd,rect})
         clientsize = peek4u({rect+8,2})
         
-        winsize[3] = winsize[3] - clientsize[1] + vc[VC_XPIXELS]
-        winsize[4] = winsize[4] - clientsize[2] + vc[VC_YPIXELS]
+        winsize[3] = winsize[3] - clientsize[1] + screen_size_x
+        winsize[4] = winsize[4] - clientsize[2] + screen_size_y
         
         c_proc(SetWindowPos, hwnd & 0 & winsize & HWND_TOP)
         
-        hdc = c_func(GetDC, {hwnd})
-        c_proc(SelectObject, 
-                  {hdc, c_func(GetStockObject, {SYSTEM_FIXED_FONT})})
+        hdcWindow = c_func(GetDC, {hwnd})
         
         return 0
-    
+        
     elsif iMsg = WM_PAINT then
-        hdc = c_func(BeginPaint, {hwnd, ps})
-        
-        if repaint != -1 then
-            call_proc(repaint, {})
-        else
-            seqrect = peek4u({ps+8,4})
-            clear_region(seqrect[1],seqrect[2],seqrect[3],seqrect[4])
-        end if
-        
+        hdcWindow = c_func(BeginPaint, {hwnd, ps})
+            seqrect = peek4u({ps+rcPaint, 4})
+            c_proc(BitBlt, hdcWindow & seqrect & hdcMem & seqrect[1..2] & SRCCOPY)
         c_proc(EndPaint, {hwnd, ps})
         
-        hdc = c_func(GetDC, {hwnd})
+        hdcWindow = c_func(GetDC, {hwnd})
         
         return 0
         
@@ -311,7 +373,7 @@ function WndProc(atom hwnd, atom iMsg, atom wParam, atom lParam)
         -- do not return 0 --
         
     elsif iMsg = WM_DESTROY then
-        c_proc(ReleaseDC, {hwnd, hdc})
+        c_proc(ReleaseDC, {hwnd, hdcWindow})
         c_proc(PostQuitMessage, {0})
         window_exists = 0
         if abort_program then
@@ -436,22 +498,27 @@ procedure WinMain(boolean first_time)
                 -- (main program must do a task_yield periodically
                 -- or the window will be frozen)
                 task_schedule(mq, {.01, .05}) -- make mouse very responsive
-                -- assume hdc has now been set
+                -- assume hdcWindow has now been set
                 return
             end if
             
-            if freeze_the_game then
-                c_proc(Sleep, {10}) -- sleep n * .001 seconds 
-                task_clock_stop()
-                if length(char_buff) then
-                    freeze_the_game = FALSE
-                    char_buff = char_buff[2..$] -- delete the char
-                    task_clock_start()
-                    task_yield()
+            -- if freeze_the_game then
+                -- c_proc(Sleep, {10}) -- sleep n * .001 seconds 
+                -- task_clock_stop()
+                -- if length(char_buff) then
+                    -- freeze_the_game = FALSE
+                    -- char_buff = char_buff[2..$] -- delete the char
+                    -- task_clock_start()
+                    -- task_yield()
+                -- end if
+            -- else
+                if redisplay then
+                    c_proc(GetClientRect,{hwnd,rect})
+                    c_proc(InvalidateRect,{hwnd,rect,FALSE})
+                    redisplay = FALSE
                 end if
-            else
                 task_yield()
-            end if
+            -- end if
         end if
     end while
     
@@ -459,9 +526,13 @@ procedure WinMain(boolean first_time)
 end procedure
 
 ------------------------------------------------------------------------------------------------------
+procedure init_window(atom hwnd)
+    
+end procedure
 
 public function graphics_mode(integer m)
     integer ncolors
+    sequence vc
     if m = -1 then
         video_mode = m
         c_proc(DestroyWindow,{hwnd})
@@ -479,6 +550,16 @@ public function graphics_mode(integer m)
             brushes[i] = c_func(CreateSolidBrush, {color_map[i]})
             pens[i] = c_func(CreatePen, {PS_SOLID, 1, color_map[i]})
         end for
+        vc = video_modes[video_mode+1]
+        columns = vc[VC_COLUMNS]
+        lines = vc[VC_LINES]
+        screen_size_x = vc[VC_XPIXELS]
+        screen_size_y = vc[VC_YPIXELS]
+        hdcMem = c_func(CreateCompatibleDC,{hdcWindow})
+        hBitmap = create_dib_section(hdcWindow, screen_size_x, screen_size_y, reverse_color(color_map))
+        c_proc(SelectObject,{hdcMem,hBitmap})
+        c_proc(SelectObject, {hdcMem, c_func(GetStockObject, {SYSTEM_FIXED_FONT})})
+        
         if window_exists then
             c_proc(DestroyWindow,{hwnd})
         end if
@@ -534,15 +615,16 @@ public procedure simplepixel(object c, sequence s)
    c = and_bits(color_mask,c)
    if atom(c) then
        -- inlined for speed
-       c_proc(SetPixelV, {hdc, s[1], s[2], color_map[1+c]})
+       c_proc(SetPixelV, {hdcMem, s[1], s[2], color_map[1+c]})
    else
        y = s[2]
        xstart = s[1]
        for i = 1 to length(c) do
-           c_proc(SetPixelV, {hdc, xstart, y, color_map[1+c[i]]})
+           c_proc(SetPixelV, {hdcMem, xstart, y, color_map[1+c[i]]})
            xstart += 1
        end for  
    end if
+   redisplay = TRUE
 end procedure
 
 
@@ -554,14 +636,14 @@ public procedure pixel(object c, sequence s)
         c = and_bits(color_mask,c)
         if atom(c) then
            -- single pixel
-           c_proc(SetPixelV, {hdc, s[1], s[2], color_map[1+c]})
-        
+           c_proc(SetPixelV, {hdcMem, s[1], s[2], color_map[1+c]})
+            
         else
             -- several pixels on one row
             y = s[2]
             xstart = s[1]
             i = 1
-            c_proc(MoveToEx, {hdc, xstart, y, 0})
+            c_proc(MoveToEx, {hdcMem, xstart, y, 0})
             while i <= length(c) do
                 pcount = 1
                 color = c[i]
@@ -570,18 +652,19 @@ public procedure pixel(object c, sequence s)
                     pcount += 1
                 end while
                 if pcount >= 2 then
-                    c_proc(SelectObject, {hdc, pens[1+color]})
-                    c_proc(LineTo, {hdc, xstart+pcount, y})
+                    c_proc(SelectObject, {hdcMem, pens[1+color]})
+                    c_proc(LineTo, {hdcMem, xstart+pcount, y})
                     i += pcount
                 else
                     -- do one pixel
-                    c_proc(SetPixelV, {hdc, xstart, y, color_map[1+c[i]]})
-                    c_proc(MoveToEx, {hdc, xstart+1, y, 0})
+                    c_proc(SetPixelV, {hdcMem, xstart, y, color_map[1+c[i]]})
+                    c_proc(MoveToEx, {hdcMem, xstart+1, y, 0})
                     i += 1
                 end if
                 xstart += pcount
             end while  
         end if
+        redisplay = TRUE
     end if
 end procedure
 
@@ -594,13 +677,13 @@ public function get_pixel(sequence s)
     if length(s)<2 or length(s)>3 then
         crash("get_pixel must be supplied a sequence of length 2 or 3.")
     elsif length(s) = 2 then
-        return c_func(GetPixel, {hdc, s[1], s[2]})
+        return c_func(GetPixel, {hdcMem, s[1], s[2]})
     else
         p = repeat(0, s[3])
         y = s[2]
         xstart = s[1]
         for i = 1 to s[3] do
-            p[i] = c_func(GetPixel, {hdc, xstart, y}) 
+            p[i] = c_func(GetPixel, {hdcMem, xstart, y}) 
             xstart += 1
         end for
         return p
@@ -614,13 +697,14 @@ public procedure ellipse(integer color, integer fill, sequence coord1, sequence 
             color = last_bk_color
         end if
         color = and_bits(color_mask,color)
-        c_proc(SelectObject, {hdc, pens[1+color]})
+        c_proc(SelectObject, {hdcMem, pens[1+color]})
         if fill then
-            c_proc(SelectObject, {hdc, brushes[1+color]})
+            c_proc(SelectObject, {hdcMem, brushes[1+color]})
         else
-            c_proc(SelectObject, {hdc, null_brush})
+            c_proc(SelectObject, {hdcMem, null_brush})
         end if
-        c_proc(Ellipse, hdc & coord1 & coord2)
+        c_proc(Ellipse, hdcMem & coord1 & coord2)
+        redisplay = TRUE
     end if
 end procedure
 
@@ -633,10 +717,10 @@ public procedure draw_line(integer c, sequence xyarray)
             c = last_bk_color
         end if
         c = and_bits(color_mask,c)
-        c_proc(SelectObject, {hdc, pens[1+c]})
+        c_proc(SelectObject, {hdcMem, pens[1+c]})
         if length(xyarray)=2 then
-            c_proc(MoveToEx, {hdc, xyarray[1][1], xyarray[1][2], 0})
-            c_proc(LineTo, {hdc, xyarray[2][1], xyarray[2][2]})
+            c_proc(MoveToEx, {hdcMem, xyarray[1][1], xyarray[1][2], 0})
+            c_proc(LineTo, {hdcMem, xyarray[2][1], xyarray[2][2]})
         else
             if length(xyarray)>npoints then
                 if points then
@@ -650,8 +734,9 @@ public procedure draw_line(integer c, sequence xyarray)
                 poke4(points + n*8,xyarray[n+1])
             end for
             
-            c_proc(Polyline,{hdc, points, length(xyarray)})
+            c_proc(Polyline,{hdcMem, points, length(xyarray)})
         end if
+        redisplay = TRUE
     end if
 end procedure
 
@@ -673,15 +758,16 @@ public procedure polygon(integer c, integer fill, sequence xyarray)
             poke4(points + n*8,xyarray[n+1])
         end for
         
-        c_proc(SelectObject, {hdc, pens[1+c]})
+        c_proc(SelectObject, {hdcMem, pens[1+c]})
         
         if fill then
-            c_proc(SelectObject, {hdc, brushes[1+c]})
+            c_proc(SelectObject, {hdcMem, brushes[1+c]})
         else
-            c_proc(SelectObject, {hdc, null_brush})
+            c_proc(SelectObject, {hdcMem, null_brush})
         end if
         
-        c_proc(Polygon,{hdc, points, length(xyarray)})
+        c_proc(Polygon,{hdcMem, points, length(xyarray)})
+        redisplay = TRUE
     end if
 end procedure
 
@@ -702,13 +788,14 @@ procedure putsxy(sequence pos, sequence string,
     -- poke4(rect+BOTTOM, pos[2]+18)
     poke4(rect, pos & pos[1]+length(string)*8 & pos[2]+18)
     
-    c_proc(SetTextColor, {hdc, color_map[1+and_bits(color_mask,fcolor)]})
-    c_proc(SetBkColor, {hdc, color_map[1+and_bits(color_mask,bcolor)]})
-    c_proc(SetBkMode, {hdc, OPAQUE})
+    c_proc(SetTextColor, {hdcMem, color_map[1+and_bits(color_mask,fcolor)]})
+    c_proc(SetBkColor, {hdcMem, color_map[1+and_bits(color_mask,bcolor)]})
+    c_proc(SetBkMode, {hdcMem, OPAQUE})
     
     s = allocate_string(string)
-    c_proc(DrawText, {hdc, s, -1, rect, DT_SINGLE_LINE})
+    c_proc(DrawText, {hdcMem, s, -1, rect, DT_SINGLE_LINE})
     free(s)
+    redisplay = TRUE
 end procedure
 
 ------------------------------------------------------------------------------------------------------
