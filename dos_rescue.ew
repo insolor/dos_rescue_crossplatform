@@ -413,8 +413,7 @@ end function
 
 atom hwnd
 
-procedure WinMain(boolean first_time)
--- main routine 
+procedure create_window()
     atom szAppName
     atom wndclass
     atom WndProcAddress
@@ -422,66 +421,74 @@ procedure WinMain(boolean first_time)
     atom mq
     atom icon
     
-    if first_time then
-        -- initial window set up
-        if atom(AppName) then
-            AppName = command_line()
-            AppName = AppName[2]
-        end if
-        szAppName = allocate_string(AppName)
-    
-        -- get address for callback
-        WndProcAddress = call_back(routine_id("WndProc")) 
-    
-        wndclass = allocate(SIZE_OF_WNDCLASS)
-        poke4(wndclass + cbSize, SIZE_OF_WNDCLASS)
-        poke4(wndclass + style, or_all({CS_HREDRAW, CS_VREDRAW, CS_OWNDC}))
-        poke4(wndclass + lpfnWndProc, WndProcAddress)
-        poke4(wndclass + cbClsExtra, 0)
-        poke4(wndclass + cbWndExtra, 0)
-        poke4(wndclass + hInstance, 0) --hInstance
-        
-        icon = get_icon()
-        poke4(wndclass + hIcon, icon)
-        poke4(wndclass + hCursor, c_func(LoadCursor, {NULL, IDC_ARROW}))
-        poke4(wndclass + hbrBackground, c_func(GetStockObject, {BLACK_BRUSH}))
-        poke4(wndclass + lpszMenuName, NULL)
-        poke4(wndclass + lpszClassName, szAppName)
-        poke4(wndclass + hIconSm, 0)
+    -- initial window set up
+    if atom(AppName) then
+        AppName = command_line()
+        AppName = AppName[2]
+    end if
+    szAppName = allocate_string(AppName)
 
-        class = c_func(RegisterClassEx, {wndclass})
-        if class = 0 then
-            puts(1, "Couldn't register class\n")
-            abort(1)
-        end if
-    
-        hwnd = c_func(CreateWindow, {
-                  0,                     -- extended style
-                  szAppName,             -- window class name
-                  allocate_string(AppName), -- window caption
-                  or_all({WS_OVERLAPPED,
-                          WS_MINIMIZEBOX,
-                          WS_CAPTION,
-                          WS_SYSMENU
-                          }), -- window style
-                  0,         -- initial x position
-                  0,         -- initial y position
-                  100,  --640, --CW_USEDEFAULT,         -- initial x size
-                  100,  --480, --CW_USEDEFAULT,         -- initial y size
-                  NULL,                  -- parent window handle
-                  NULL,                  -- window menu handle
-                  0 ,                    -- hInstance // program instance handle
-                  NULL})                 -- creation parameters
-    
-        if hwnd = 0 then
-            puts(1, "Couldn't CreateWindow\n")
-            abort(1)
-        end if
-    
-        c_proc(ShowWindow, {hwnd, SW_SHOWNORMAL})
-        c_proc(UpdateWindow, {hwnd})
-    end if  
+    -- get address for callback
+    WndProcAddress = call_back(routine_id("WndProc")) 
 
+    wndclass = allocate(SIZE_OF_WNDCLASS)
+    poke4(wndclass + cbSize, SIZE_OF_WNDCLASS)
+    poke4(wndclass + style, or_all({CS_HREDRAW, CS_VREDRAW, CS_OWNDC}))
+    poke4(wndclass + lpfnWndProc, WndProcAddress)
+    poke4(wndclass + cbClsExtra, 0)
+    poke4(wndclass + cbWndExtra, 0)
+    poke4(wndclass + hInstance, 0) --hInstance
+    
+    icon = get_icon()
+    poke4(wndclass + hIcon, icon)
+    poke4(wndclass + hCursor, c_func(LoadCursor, {NULL, IDC_ARROW}))
+    poke4(wndclass + hbrBackground, c_func(GetStockObject, {BLACK_BRUSH}))
+    poke4(wndclass + lpszMenuName, NULL)
+    poke4(wndclass + lpszClassName, szAppName)
+    poke4(wndclass + hIconSm, 0)
+
+    class = c_func(RegisterClassEx, {wndclass})
+    if class = 0 then
+        puts(1, "Couldn't register class\n")
+        abort(1)
+    end if
+
+    hwnd = c_func(CreateWindow, {
+              0,                     -- extended style
+              szAppName,             -- window class name
+              allocate_string(AppName), -- window caption
+              or_all({WS_OVERLAPPED,
+                      WS_MINIMIZEBOX,
+                      WS_CAPTION,
+                      WS_SYSMENU
+                      }), -- window style
+              0,         -- initial x position
+              0,         -- initial y position
+              100,  --640, --CW_USEDEFAULT,         -- initial x size
+              100,  --480, --CW_USEDEFAULT,         -- initial y size
+              NULL,                  -- parent window handle
+              NULL,                  -- window menu handle
+              0 ,                    -- hInstance // program instance handle
+              NULL})                 -- creation parameters
+
+    if hwnd = 0 then
+        puts(1, "Couldn't CreateWindow\n")
+        abort(1)
+    end if
+
+    c_proc(ShowWindow, {hwnd, SW_SHOWNORMAL})
+    c_proc(UpdateWindow, {hwnd})
+    
+    -- create task to check message queue
+    mq = task_create(routine_id("message_loop"), {})
+    -- check the queue every .2 to .3 seconds
+    -- (main program must do a task_yield periodically
+    -- or the window will be frozen)
+    task_schedule(mq, {.01, .05}) -- make mouse very responsive
+    -- assume hdcWindow has now been set
+end procedure
+
+procedure message_loop()
     -- initial task - message loop using PeekMessage
     while TRUE do
         if c_func(PeekMessage, {msg, NULL, 0, 0, PM_REMOVE}) then
@@ -493,38 +500,14 @@ procedure WinMain(boolean first_time)
             c_proc(DispatchMessage, {msg})
         else
             -- no messages, let another task run
-            if first_time then
-                -- create task to check message queue
-                mq = task_create(routine_id("WinMain"), {FALSE})
-                -- check the queue every .2 to .3 seconds
-                -- (main program must do a task_yield periodically
-                -- or the window will be frozen)
-                task_schedule(mq, {.01, .05}) -- make mouse very responsive
-                -- assume hdcWindow has now been set
-                return
+            if redisplay then
+                c_proc(GetClientRect,{hwnd,rect})
+                c_proc(InvalidateRect,{hwnd,rect,FALSE})
+                redisplay = FALSE
             end if
-            
-            -- if freeze_the_game then
-                -- c_proc(Sleep, {10}) -- sleep n * .001 seconds 
-                -- task_clock_stop()
-                -- if length(char_buff) then
-                    -- freeze_the_game = FALSE
-                    -- char_buff = char_buff[2..$] -- delete the char
-                    -- task_clock_start()
-                    -- task_yield()
-                -- end if
-            -- else
-                if redisplay then
-                    c_proc(GetClientRect,{hwnd,rect})
-                    c_proc(InvalidateRect,{hwnd,rect,FALSE})
-                    redisplay = FALSE
-                end if
-                task_yield()
-            -- end if
+            task_yield()
         end if
     end while
-    
-    char_buff &= 27 -- Esc character to terminate the other tasks
 end procedure
 
 ------------------------------------------------------------------------------------------------------
@@ -566,7 +549,7 @@ public function graphics_mode(integer m)
         if window_exists then
             c_proc(DestroyWindow,{hwnd})
         end if
-        WinMain(TRUE) -- initial setup of hdc
+        create_window() -- initial setup of hdc
     end if
     return 0
 end function
