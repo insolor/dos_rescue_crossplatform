@@ -227,7 +227,7 @@ procedure create_window()
 	XSelectInput( display, window, ExposureMask + KeyPressMask + PointerMotionMask + ButtonPressMask + ButtonReleaseMask )
 	
 	-- create task to check message queue
-	atom mq = task_create(routine_id("event_loop"), {FALSE})
+	atom mq = task_create(routine_id("event_loop"), {})
 	-- check the queue every .2 to .3 seconds
 	-- (main program must do a task_yield periodically
 	-- or the window will be frozen)
