@@ -142,37 +142,7 @@ atom
 	wm_protocols,
 	wm_destroy
 
-procedure main( integer first_time )
-	if first_time then
-		-- create the window
-		display = XOpenDisplay( 0 )
-		screen  = DefaultScreen( display )
-		rootwindow = RootWindow( display, screen )
-		screen_size_x = video_modes[video_mode+1][VC_XPIXELS]
-		screen_size_y = video_modes[video_mode+1][VC_YPIXELS]
-		window = XCreateSimpleWindow( display, rootwindow, 100, 100, 
-			screen_size_x + 2, 
-			screen_size_y + 2, 
-			2, last_bk_color, 0xCCCCCC )
-		
-		wm_protocols = XInternAtom(display, "WM_PROTOCOLS", 0)
-		wm_destroy = XInternAtom( display, "WM_DELETE_WINDOW", 0)
-		XSetWMProtocols( display, window, wm_destroy )
-		XMapWindow( display, window )
-		window_exists = 1
-		
-		pixmap = XCreatePixmap( display, window, 
-			screen_size_x, 
-			screen_size_y, 
-			XDefaultDepth( display, screen ) )
-		
-		atom default_gcontext = XGContextFromGC( XDefaultGC( display, screen ) )
-		
-		clear_region(0,0,screen_size_x,screen_size_y)
-		
-		XSelectInput( display, window, ExposureMask + KeyPressMask + PointerMotionMask + ButtonPressMask + ButtonReleaseMask )
-	end if
-	
+procedure event_loop()
 	atom event = new_XEvent( 1 )
 	while 1 do
 		if XPending( display ) then
@@ -217,37 +187,52 @@ procedure main( integer first_time )
 					end if
 			end switch
 		else
-			if first_time then
-				-- create task to check message queue
-				atom mq = task_create(routine_id("main"), {FALSE})
-				-- check the queue every .2 to .3 seconds
-				-- (main program must do a task_yield periodically
-				-- or the window will be frozen)
-				task_schedule(mq, {.08, .12}) -- make keyboard very responsive
-				-- assume hdc has now been set
-				return
+			if redisplay then
+				blit()
+				redisplay = FALSE
 			end if
 			
-			if freeze_the_game then
-				sleep( 0.001 ) -- sleep n * .001 seconds 
-				task_clock_stop()
-				if length(char_buff) then
-					freeze_the_game = FALSE
-					char_buff = char_buff[2..$] -- delete the char
-					task_clock_start()
-					task_yield()
-				end if
-			else
-				if redisplay then
-				    blit()
-				    redisplay = FALSE
-				end if
-				
-				task_yield()
-			end if
-			
+			task_yield()
 		end if
 	end while
+end procedure
+
+procedure create_window()
+	-- create the window
+	display = XOpenDisplay( 0 )
+	screen  = DefaultScreen( display )
+	rootwindow = RootWindow( display, screen )
+	screen_size_x = video_modes[video_mode+1][VC_XPIXELS]
+	screen_size_y = video_modes[video_mode+1][VC_YPIXELS]
+	window = XCreateSimpleWindow( display, rootwindow, 100, 100, 
+		screen_size_x + 2, 
+		screen_size_y + 2, 
+		2, last_bk_color, 0xCCCCCC )
+	
+	wm_protocols = XInternAtom(display, "WM_PROTOCOLS", 0)
+	wm_destroy = XInternAtom( display, "WM_DELETE_WINDOW", 0)
+	XSetWMProtocols( display, window, wm_destroy )
+	XMapWindow( display, window )
+	window_exists = 1
+	
+	pixmap = XCreatePixmap( display, window, 
+		screen_size_x, 
+		screen_size_y, 
+		XDefaultDepth( display, screen ) )
+	
+	atom default_gcontext = XGContextFromGC( XDefaultGC( display, screen ) )
+	
+	clear_region(0,0,screen_size_x,screen_size_y)
+	
+	XSelectInput( display, window, ExposureMask + KeyPressMask + PointerMotionMask + ButtonPressMask + ButtonReleaseMask )
+	
+	-- create task to check message queue
+	atom mq = task_create(routine_id("event_loop"), {FALSE})
+	-- check the queue every .2 to .3 seconds
+	-- (main program must do a task_yield periodically
+	-- or the window will be frozen)
+	task_schedule(mq, {.08, .12}) -- make keyboard very responsive
+	-- assume hdc has now been set
 end procedure
 
 ------------------------------------------------------------------------------------------------------
@@ -269,7 +254,8 @@ public function graphics_mode(integer m)
 			-- TODO: free GCs
 			XDestroyWindow( display, window )
 		end if
-		main(TRUE) -- initial setup of hdc
+		-- main(TRUE)
+		create_window() -- initial setup of hdc
 	end if
 	return 0
 end function
